@@ -1,0 +1,11 @@
+Package: ActiveDriverWGS
+Title: Cancer Driver Discovery in Whole Genomes
+Version: 0.0.1
+Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
+Description: ActiveDriverWGS performs statistical analysis of single nucleotide variants (SNVs) and small insertions-deletions (indels) in a candidate genomic region relative to adjacent background sequence using Poisson generalised linear regression.
+Depends: R (>= 3.4.0)
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Imports: parallel, MASS, Biostrings, BSgenome, BSgenome.Hsapiens.UCSC.hg19
+RoxygenNote: 6.0.1.9000
