@@ -1,3 +1,15 @@
+#' @import parallel
+#' @import MASS
+#' @import Biostrings
+#' @import BSgenome
+#' @import BSgenome.Hsapiens.UCSC.hg19
+
+library(parallel)
+library(MASS)
+library(Biostrings)
+library(BSgenome)
+library(BSgenome.Hsapiens.UCSC.hg19)
+
 #### Regression Test
 
 # hyp = h0; dfr = dfr_w_site; select_positions = dfr_w_site$is_element==1
