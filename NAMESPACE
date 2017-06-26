@@ -2,8 +2,3 @@
 
 export(find_drivers)
 export(prepare_elements)
-import(BSgenome)
-import(BSgenome.Hsapiens.UCSC.hg19)
-import(Biostrings)
-import(MASS)
-import(parallel)

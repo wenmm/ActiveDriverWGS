@@ -1,24 +1,14 @@
-#' @import parallel
-#' @import MASS
-#' @import Biostrings
-#' @import BSgenome
-#' @import BSgenome.Hsapiens.UCSC.hg19
 
-library(parallel)
-library(MASS)
-library(Biostrings)
-library(BSgenome)
-library(BSgenome.Hsapiens.UCSC.hg19)
 
 #### Regression Test
 
 # hyp = h0; dfr = dfr_w_site; select_positions = dfr_w_site$is_element==1
 get_obs_exp = function(hyp, select_positions, dfr) {
 	obs_mut = sum(dfr[select_positions, "muts"])
-	predict_mut = predict(hyp, type="response")[select_positions]
+	predict_mut = stats::predict(hyp, type="response")[select_positions]
 	exp_mut = sum(predict_mut)
 	exp_boot = sapply(1:100, function(x) sum(na.rm=T, sample(predict_mut, replace=T)))
-	obs_enriched = obs_mut > quantile(exp_boot, 0.95)
+	obs_enriched = obs_mut > stats::quantile(exp_boot, 0.95)
 	list(obs_mut, exp_mut, obs_enriched)
 }
 
@@ -92,7 +82,7 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	window_muts$mut_tag = toupper(gsub(">.$", "", window_muts$mut_tag))
 
 	# select trinucleotides in this element, sites, and surrounding window	
-	cols_3n = c(names(trinucleotideFrequency(DNAString("AA"))), "INDEL")
+	cols_3n = c(names(Biostrings::trinucleotideFrequency(Biostrings::DNAString("AA"))), "INDEL")
 	
 	this_site_3n = site_3n[site_3n$id==id,,drop=F]
 	this_site_3n_total = 0
@@ -194,16 +184,16 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	}
 	
 	# if only one type of trinucleotides present then trinucleotide cannot be included as predictor
-	h0_formula = as.formula("muts~trinuc")
-	h1_formula = as.formula("muts~trinuc+element")
+	h0_formula = stats::as.formula("muts~trinuc")
+	h1_formula = stats::as.formula("muts~trinuc+element")
 	if (length(unique(merged_dfr$trinuc))==1) {
-		h0_formula = as.formula("muts~1")
-		h1_formula = as.formula("muts~element")
+		h0_formula = stats::as.formula("muts~1")
+		h1_formula = stats::as.formula("muts~element")
 	}
 	
-	h0 = glm(h0_formula, family=poisson, data=merged_dfr)
-	h1 = glm(h1_formula, family=poisson, data=merged_dfr)
-	pp_element = anova(h0, h1, test="Chisq")[2,5]
+	h0 = stats::glm(h0_formula, family=stats::poisson, data=merged_dfr)
+	h1 = stats::glm(h1_formula, family=stats::poisson, data=merged_dfr)
+	pp_element = stats::anova(h0, h1, test="Chisq")[2,5]
 
 #	h0 = try(glm.nb(h0_formula, data=merged_dfr, control=glm.control(maxit=100)), silent=TRUE)
 #	h1 = try(glm.nb(h1_formula, data=merged_dfr, control=glm.control(maxit=100)), silent=TRUE)
@@ -225,12 +215,12 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 #					paste(c("element", nonzero_sites), collapse=" + ")))
 #		}
 
-		h2_formula = as.formula(ifelse(length(unique(merged_dfr$trinuc))>1, 
+		h2_formula = stats::as.formula(ifelse(length(unique(merged_dfr$trinuc))>1, 
 				"muts ~ trinuc + element + any_site", 
 				"muts ~ element + any_site"))
 		
-		h2 = glm(h2_formula, data=merged_dfr, family=poisson)
-		pp_site = anova(h1, h2, test="Chisq")[2,5]
+		h2 = stats::glm(h2_formula, data=merged_dfr, family=stats::poisson)
+		pp_site = stats::anova(h1, h2, test="Chisq")[2,5]
 #		h2 = try(glm.nb(h2_formula, data=merged_dfr))
 
 #		if (class(h2)[[1]]!="try-error") {	
@@ -284,7 +274,7 @@ split_coord_fragments_in_BED = function(i, coords) {
 }
 
 prepare_element_coords_from_BED = function(fname) {
-	input = read.delim(fname, stringsAsFactors=F, header=F)
+	input = utils::read.delim(fname, stringsAsFactors=F, header=F)
 	colnames(input) = paste0("V", 1:ncol(input))
 	coords = do.call(rbind, lapply(1:nrow(input), split_coord_fragments_in_BED, input))
 	coords = data.frame(coords, stringsAsFactors=F)
@@ -305,7 +295,7 @@ coords_sanity = function(coords) {
 	if (is.null(coords[[1]])) {
 		return(NULL)
 	}
-	max_end = seqlengths(Hsapiens)[as.character(coords$chr)]
+	max_end = GenomeInfoDb::seqlengths(BSgenome.Hsapiens.UCSC.hg19::Hsapiens)[as.character(coords$chr)]
 	# to accommodate -1..+1 for trinucleotide computation
 	# maximum coordinate is max-1
 	coords$ends[coords$ends>(max_end-1)] = (max_end-1)[coords$ends>(max_end-1)]
@@ -320,9 +310,9 @@ get_3n = function(coords) {
 		return(NULL)
 	}
 
-	gr_3n = GRanges(coords$chr, IRanges(coords$starts-1, coords$ends+1), mcol=coords[,c("id", "frag_id")])	
-	seqs = getSeq(Hsapiens, gr_3n)
-	trinucs = trinucs1 = trinucleotideFrequency(seqs)
+	gr_3n = GenomicRanges::GRanges(coords$chr, IRanges::IRanges(coords$starts-1, coords$ends+1), mcol=coords[,c("id", "frag_id")])	
+	seqs = BSgenome::getSeq(BSgenome.Hsapiens.UCSC.hg19::Hsapiens, gr_3n)
+	trinucs = trinucs1 = Biostrings::trinucleotideFrequency(seqs)
 
 	# CT in main signature; translate to alternative strand if GA
 	new_tag = colnames(trinucs)
@@ -333,13 +323,13 @@ get_3n = function(coords) {
 	trinucs_keep = trinucs[,which_to_keep,drop=F]
 	trinucs_complement = trinucs[,which_to_complement,drop=F]
 	# complement names of dfr to add up to primary trinucleotides
-	colnames(trinucs_complement) = as.character(complement(DNAStringSet(colnames(trinucs_complement))))
+	colnames(trinucs_complement) = as.character(Biostrings::complement(Biostrings::DNAStringSet(colnames(trinucs_complement))))
 	trinucs_keep[,colnames(trinucs_keep)] = 
 		trinucs_keep[,colnames(trinucs_keep)] + trinucs_complement[,colnames(trinucs_keep)]
 	# set secondary trinucleotides to zero
 	trinucs_complement[,] = 0
 	# complement names of dfr again to get back to original trinucleotides (but these are zero for now)
-	colnames(trinucs_complement) = as.character(complement(DNAStringSet(colnames(trinucs_complement))))
+	colnames(trinucs_complement) = as.character(Biostrings::complement(Biostrings::DNAStringSet(colnames(trinucs_complement))))
 	trinucs = cbind(trinucs_keep, trinucs_complement)
 
 	trinucs = data.frame(trinucs, INDEL=apply(trinucs, 1, sum), id=coords$id, frag_id=coords$frag_id, stringsAsFactors=F)
@@ -354,7 +344,7 @@ get_3n = function(coords) {
 
 add_trinucs_by_elements = function(this_3n) {
 
-	cols_3n = c(names(trinucleotideFrequency(DNAString("AA"))), "INDEL")
+	cols_3n = c(names(Biostrings::trinucleotideFrequency(Biostrings::DNAString("AA"))), "INDEL")
 	trinucs_dfr = do.call(rbind, by(this_3n, this_3n[, "id"], function(x) apply(x[, cols_3n], 2, sum) ))
 	trinucs_dfr = data.frame(trinucs_dfr, id=rownames(trinucs_dfr), stringsAsFactors=F)
 	rownames(trinucs_dfr) = NULL
@@ -377,30 +367,30 @@ get_window_coords = function(coords, flank_window) {
 
 get_sites_per_element = function(i, element_coords, site_gr) {
 	if(i %% 1000 == 0) cat(i, " ")
-	if (runif(1)<0.01) gc()
+	if (stats::runif(1)<0.01) gc()
 	
-	element_gr = GRanges(element_coords[i, "chr"], 
-			IRanges(start=element_coords[i, "starts"], end=element_coords[i, "ends"]), 
+	element_gr = GenomicRanges::GRanges(element_coords[i, "chr"], 
+			IRanges::IRanges(start=element_coords[i, "starts"], end=element_coords[i, "ends"]), 
 			mcol=data.frame(id=element_coords[i,"id"], frag_id=element_coords[i, "frag_id"], 
 			stringsAsFactors=F))
 
-	overlaps = findOverlaps(site_gr, element_gr)
-	site_matched = site_gr[queryHits(overlaps)]
+	overlaps = GenomicRanges::findOverlaps(site_gr, element_gr)
+	site_matched = site_gr[S4Vectors::queryHits(overlaps)]
 	if (length(site_matched)==0) {
 		return(NULL)
 	}
 
-	covr = coverage(site_matched)
+	covr = GenomicRanges::coverage(site_matched)
 	rm(overlaps, site_matched)
 	
 	site_islands = NA
 	if (length(covr)>0) {
-		site_islands = slice(covr, lower=1)[[element_coords[i, "chr"]]]
+		site_islands = IRanges::slice(covr, lower=1)[[element_coords[i, "chr"]]]
 	}
 	
 	# starts and ends of sites need to be adjusted to not exceed element borders
-	ends = sapply(end(site_islands), min, element_coords[i, "ends"])
-	starts = sapply(start(site_islands), max, element_coords[i, "starts"])
+	ends = sapply(BiocGenerics::end(site_islands), min, element_coords[i, "ends"])
+	starts = sapply(BiocGenerics::start(site_islands), max, element_coords[i, "starts"])
 
 	data.frame(chr=element_coords[i, "chr"], starts, ends, id=element_coords[i,"id"], 
 			frag_id=element_coords[i, "frag_id"], site_id=1:length(site_islands), 
@@ -419,14 +409,14 @@ get_sites_per_element = function(i, element_coords, site_gr) {
 #' @export
 prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.cores = 1) {
 	
-	raw_site_coords = read.delim(sites_file, stringsAsFactors = FALSE, header = FALSE)
+	raw_site_coords = utils::read.delim(sites_file, stringsAsFactors = FALSE, header = FALSE)
 	colnames(raw_site_coords) = c("chr", "starts", "ends", "site_info")
 	raw_site_coords$chr = gsub("chr", "", raw_site_coords$chr, ignore.case = TRUE)
 	raw_site_coords$chr = paste0("chr", raw_site_coords$chr)
 
 	cat("read sites\n")
 
-	element_coords_1 = prepare_element_coords_from_BED(elements_filename)
+	element_coords_1 = prepare_element_coords_from_BED(elements_file)
 
 	cat("read elements\n")
 
@@ -438,19 +428,19 @@ prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.c
 	site_coords = NULL
 	if (!is.null(raw_site_coords[[1]])) {
 		# first only keep sites that overlap with element coordinates
-		site_gr = GRanges(raw_site_coords$chr,
-			IRanges(start=raw_site_coords$starts, end=raw_site_coords$ends))
-		element_gr = GRanges(element_coords$chr, 
-			IRanges(start=element_coords$starts, end=element_coords$ends))
+		site_gr = GenomicRanges::GRanges(raw_site_coords$chr,
+			IRanges::IRanges(start=raw_site_coords$starts, end=raw_site_coords$ends))
+		element_gr = GenomicRanges::GRanges(element_coords$chr, 
+			IRanges::IRanges(start=element_coords$starts, end=element_coords$ends))
 
 		rm(raw_site_coords)
 
-		overlaps_found = findOverlaps(element_gr, site_gr)
-		site_here_gr = site_gr[subjectHits(overlaps_found)]
+		overlaps_found = GenomicRanges::findOverlaps(element_gr, site_gr)
+		site_here_gr = site_gr[S4Vectors::subjectHits(overlaps_found)]
 
 		rm(site_gr, element_gr)
 	
-		site_coords = do.call(rbind, mclapply(1:nrow(element_coords), 
+		site_coords = do.call(rbind, parallel::mclapply(1:nrow(element_coords), 
 			get_sites_per_element, element_coords, site_here_gr, mc.cores=mc.cores))
 	}
 
@@ -476,17 +466,17 @@ get_3n_context_of_mutations = function(mutations) {
 	mutations_mnv = mutations[!(mutations$ref %in% legal_dna & mutations$alt %in% legal_dna),]
 	
 	# snvs can have flanks
-	flank_ranges = GRanges(mutations_snv$chr, 
-			IRanges(start=mutations_snv$pos1-1, end=mutations_snv$pos2+1), strand="*")
-	triples = as.character(getSeq(Hsapiens, flank_ranges))
+	flank_ranges = GenomicRanges::GRanges(mutations_snv$chr, 
+			IRanges::IRanges(start=mutations_snv$pos1-1, end=mutations_snv$pos2+1), strand="*")
+	triples = as.character(BSgenome::getSeq(BSgenome.Hsapiens.UCSC.hg19::Hsapiens, flank_ranges))
 	
 	# complement trinucleotide where necessary to force into one signature space
 	new_triples = triples
 	new_alt = mutations_snv$alt
 	which_to_complement = which(mutations_snv$ref %in% c("G", "A"))
 
-	new_triples[which_to_complement] = as.character(complement(DNAStringSet(new_triples[which_to_complement])))
-	new_alt[which_to_complement] = as.character(complement(DNAStringSet(new_alt[which_to_complement])))
+	new_triples[which_to_complement] = as.character(Biostrings::complement(Biostrings::DNAStringSet(new_triples[which_to_complement])))
+	new_alt[which_to_complement] = as.character(Biostrings::complement(Biostrings::DNAStringSet(new_alt[which_to_complement])))
 	mutations_snv$tag = paste0(new_triples, ">", new_alt)
 #	ref2 = substr(triples, 2,2)
 #	mutations_snv[ref2!=mutations_snv$ref, "tag"] = "dubref"
@@ -502,7 +492,7 @@ get_3n_context_of_mutations = function(mutations) {
 
 format_maf = function(maf_filename, filter_hyper_MB) {
 
-	maf = read.delim(maf_filename, stringsAsFactors = FALSE, header = FALSE)
+	maf = utils::read.delim(maf_filename, stringsAsFactors = FALSE, header = FALSE)
 	
 	if (ncol(maf) != 7) {
 		stop("Error: mutation file is not in the correct format")
@@ -556,19 +546,19 @@ split_maf_by_cancer_type = function(maf, cancer_types_list) {
 }
 
 merge_granges_overlaps = function(muts_gr, muts_tab, regs_gr, regs_tab, compute_overlap=F) {
-	overlaps_found = findOverlaps(muts_gr, regs_gr)
-	muts_in_regs = muts_tab[queryHits(overlaps_found),]
-	regs_with_muts = regs_tab[subjectHits(overlaps_found),]
+	overlaps_found = GenomicRanges::findOverlaps(muts_gr, regs_gr)
+	muts_in_regs = muts_tab[S4Vectors::queryHits(overlaps_found),]
+	regs_with_muts = regs_tab[S4Vectors::subjectHits(overlaps_found),]
 	
 	colnames(muts_in_regs) = paste("mut", colnames(muts_in_regs), sep="_")
 	colnames(regs_with_muts) = paste("reg", colnames(regs_with_muts), sep="_")
 	merged_ranges = cbind(muts_in_regs, regs_with_muts)
 	
 	if (compute_overlap) {
-		gr_intersects = pintersect(muts_gr[queryHits(overlaps_found)], regs_gr[subjectHits(overlaps_found)])
-		gr_unions = punion(muts_gr[queryHits(overlaps_found)], regs_gr[subjectHits(overlaps_found)])
-		percentIntersect = width(gr_intersects) / width(muts_gr[queryHits(overlaps_found)])
-		jaccard = width(gr_intersects)/width(gr_unions)
+		gr_intersects = GenomicRanges::pintersect(muts_gr[S4Vectors::queryHits(overlaps_found)], regs_gr[S4Vectors::subjectHits(overlaps_found)])
+		gr_unions = GenomicRanges::punion(muts_gr[S4Vectors::queryHits(overlaps_found)], regs_gr[S4Vectors::subjectHits(overlaps_found)])
+		percentIntersect = BiocGenerics::width(gr_intersects) / BiocGenerics::width(muts_gr[S4Vectors::queryHits(overlaps_found)])
+		jaccard = BiocGenerics::width(gr_intersects)/BiocGenerics::width(gr_unions)
 		merged_ranges = cbind(merged_ranges, percentIntersect, jaccard)
 	}
 	merged_ranges
@@ -578,8 +568,8 @@ merge_elements_snvs = function(coords, snvs) {
 	if (is.null(coords[[1]])) {
 		return(NULL)
 	}
-	e_gr = GRanges(coords$chr, IRanges(start=coords$starts, end=coords$ends), mcols=coords$element_id)
-	m_gr = GRanges(snvs$chr, IRanges(start=snvs$pos1, end=snvs$pos2), mcols=snvs$tag)
+	e_gr = GenomicRanges::GRanges(coords$chr, IRanges::IRanges(start=coords$starts, end=coords$ends), mcols=coords$element_id)
+	m_gr = GenomicRanges::GRanges(snvs$chr, IRanges::IRanges(start=snvs$pos1, end=snvs$pos2), mcols=snvs$tag)
 	m_e = merge_granges_overlaps(m_gr, snvs, e_gr, coords)
 	rownames(m_e) = NULL
 	m_e
@@ -643,7 +633,7 @@ get_signf_results = function(cancer_type, all_res) {
 		return(NULL)
 	}
 	# this is FDR treating element-level NAs as 1s
-	this_results$fdr_element = p.adjust(this_results$pp_element, method="fdr", n=nrow(this_results))
+	this_results$fdr_element = stats::p.adjust(this_results$pp_element, method="fdr", n=nrow(this_results))
 	
 	this_results = this_results[order(this_results$fdr_element),]
 	# this_results$gene = gsub("(.+)::(.+)::(.+)::(.+)", "\\3", this_results$id)
@@ -658,7 +648,7 @@ get_signf_results = function(cancer_type, all_res) {
 
 	if (nrow(filtered_results)!=0) {
 		# site-level FDR perform only on elements with pre-selection of FDR<0.05
-		filtered_results$fdr_site = p.adjust(filtered_results$pp_site, method="fdr", n=nrow(filtered_results))
+		filtered_results$fdr_site = stats::p.adjust(filtered_results$pp_site, method="fdr", n=nrow(filtered_results))
 		filtered_results$has_site_mutations = !is.na(filtered_results$fdr_site) & filtered_results$fdr_site<0.05
 		filtered_results$has_site_mutations = c("","V")[1+c(filtered_results$has_site_mutations)]
 	}
@@ -711,19 +701,19 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 	cancer_types_names = names(cancer_types_list)
 	names(cancer_types_names) = names(cancer_types_list)
 
-	element_mutations = mclapply(cancer_types_names, function(cancer_type) {
+	element_mutations = parallel::mclapply(cancer_types_names, function(cancer_type) {
 			get_element_mutations(element_coords, window_coords, site_coords, maf_by_cancer_type[[cancer_type]])
 		}, mc.cores=mc.cores, mc.preschedule=F)
 
 	cat("got element mutations\n")
 
-	not_done = do.call(rbind, mclapply(names(cancer_types_list), function(cancer_type) {
+	not_done = do.call(rbind, parallel::mclapply(names(cancer_types_list), function(cancer_type) {
 		get_todo_for_elements(cancer_type, element_coords, element_mutations[[cancer_type]]$mutations_in_elements)
 	}, mc.cores=mc.cores))
 
 	cat("todo: ", nrow(not_done), "\n")
 
-	all_results = do.call(rbind, mclapply(1:nrow(not_done), function(i) {
+	all_results = do.call(rbind, parallel::mclapply(1:nrow(not_done), function(i) {
 		cat(i, " ")
 		cancer_type = not_done[i, "cancer_type"]
 		element_id = not_done[i, "element_id"]

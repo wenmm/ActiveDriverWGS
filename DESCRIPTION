@@ -7,5 +7,5 @@ Depends: R (>= 3.4.0)
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
-Imports: parallel, MASS, Biostrings, BSgenome, BSgenome.Hsapiens.UCSC.hg19
+Imports: parallel, Biostrings, BSgenome, BSgenome.Hsapiens.UCSC.hg19, BiocGenerics, GenomeInfoDb, GenomicRanges, IRanges, S4Vectors
 RoxygenNote: 6.0.1.9000
