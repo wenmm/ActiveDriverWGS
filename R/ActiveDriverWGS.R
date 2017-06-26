@@ -63,7 +63,7 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 
 	blank_result = data.frame(id, pp_site=NA, pp_element=NA, element_muts_obs=NA, element_muts_exp=NA, 
 					element_enriched=NA, site_muts_obs=NA, site_muts_exp=NA, site_enriched=NA,
-					selected_sites=NA, stringsAsFactors=F)
+					selected_sites=NA, h0_df=NA, h1_df=NA, stringsAsFactors=F)
 	cat(".")
 	# select mutations in this element, sites and surrounding window
 	site_muts = mutations_in_sites[mutations_in_sites$reg_id==id,, drop=F]
@@ -193,7 +193,10 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	
 	h0 = stats::glm(h0_formula, family=stats::poisson, data=merged_dfr)
 	h1 = stats::glm(h1_formula, family=stats::poisson, data=merged_dfr)
-	pp_element = stats::anova(h0, h1, test="Chisq")[2,5]
+	chi_sq = stats::anova(h0, h1, test="Chisq")
+	pp_element = chi_sq[2,5]
+	h0_df = chi_sq[1,3]
+	h1_df = chi_sq[2,3]
 
 #	h0 = try(glm.nb(h0_formula, data=merged_dfr, control=glm.control(maxit=100)), silent=TRUE)
 #	h1 = try(glm.nb(h1_formula, data=merged_dfr, control=glm.control(maxit=100)), silent=TRUE)
@@ -256,7 +259,7 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	data.frame(id, pp_site, pp_element, 
 			element_muts_obs, element_muts_exp, element_enriched, 
 			site_muts_obs, site_muts_exp, site_enriched,
-			selected_sites = paste(mut_site_frag_id, collapse=";"),
+			selected_sites = paste(mut_site_frag_id, collapse=";"), h0_df, h1_df,
 			stringsAsFactors=F)
 }
 
@@ -601,7 +604,7 @@ get_unmutated_elements = function(cancer_type, element_coords, mutations_in_elem
 
 	blank_result = data.frame(id=elements_without_muts, pp_site=NA, pp_element=NA, element_muts_obs=NA, 
 					element_muts_exp=NA, element_enriched=NA, site_muts_obs=NA, site_muts_exp=NA, site_enriched=NA,
-					selected_sites=NA, stringsAsFactors=F)
+					selected_sites=NA, h0_df=NA, h1_df=NA, stringsAsFactors=F)
 	as.matrix(cbind(blank_result, cancer_type, stringsAsFactors=F))
 }
 
