@@ -64,7 +64,7 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	blank_result = data.frame(id, pp_site=NA, pp_element=NA, element_muts_obs=NA, element_muts_exp=NA, 
 					element_enriched=NA, site_muts_obs=NA, site_muts_exp=NA, site_enriched=NA,
 					selected_sites=NA, h0_df=NA, h1_df=NA, stringsAsFactors=F)
-	cat(".")
+
 	# select mutations in this element, sites and surrounding window
 	site_muts = mutations_in_sites[mutations_in_sites$reg_id==id,, drop=F]
 	element_muts = mutations_in_elements[mutations_in_elements$reg_id==id,, drop=F]
@@ -132,40 +132,6 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	
 	if (!is.null(nrow(site_muts)) && nrow(site_muts)>0) {
 		site_dfr = cbind(get_dfr_by_3n(this_site_3n_total, site_muts, "element", cols_3n), any_site=TRUE)
-#
-#		# each site needs a separate dfr to reflect mutations and trinucleotides
-#		site_todo = this_site_3n[,c("frag_id", "site_id"),drop=F]
-#		site_dfr = do.call(rbind, lapply(1:nrow(site_todo), 
-#				function(x) get_site_dfr(site_todo[x,1], site_todo[x,2], this_site_3n, site_muts, cols_3n)))
-#		
-#		# if just one site, then no dummy variables are needed
-#		# just need to rename predictors in sites, windows, elements
-#		if (nrow(this_site_3n)==1) {
-#			only_site = unique(site_dfr$element)
-#			site_dfr$element = "element"
-#			site_dfr$only_site = 1
-#			colnames(site_dfr)[colnames(site_dfr)=="only_site"] = only_site
-#			# repeat for sites and elements
-#			element_dfr$only_site = 0
-#			colnames(element_dfr)[colnames(element_dfr)=="only_site"] = only_site
-#			window_dfr$only_site = 0
-#			colnames(window_dfr)[colnames(window_dfr)=="only_site"] = only_site
-#		} else {
-#			# flatten multilevel variables to many single level variables
-#			# actung - model matrix removes one variable from play
-#			dfr_by_site = do.call(cbind, lapply(unique(site_dfr$element), function(x) 0+(site_dfr$element==x)))
-#			colnames(dfr_by_site) = unique(site_dfr$element)
-#			
-#			# element and window dfr's need to be padded horizontally by site variables that are all zeroes
-#			dummy_by_site = t(structure(names=colnames(dfr_by_site), rep(0, ncol(dfr_by_site))))
-#			element_dfr = cbind(element_dfr, dummy_by_site)
-#			window_dfr = cbind(window_dfr, dummy_by_site)
-#			
-#			# remove site variables from element field in site dfr
-#			# then add the dfr_by_site with separate variables for every site
-#			site_dfr$element = "element"
-#			site_dfr = cbind(site_dfr, dfr_by_site)
-#		}
 	}
 	
 	merged_dfr = rbind(site_dfr, element_dfr, window_dfr)
@@ -198,25 +164,9 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	h0_df = chi_sq[1,3]
 	h1_df = chi_sq[2,3]
 
-#	h0 = try(glm.nb(h0_formula, data=merged_dfr, control=glm.control(maxit=100)), silent=TRUE)
-#	h1 = try(glm.nb(h1_formula, data=merged_dfr, control=glm.control(maxit=100)), silent=TRUE)
-#	if (any(c(class(h0)[[1]], class(h1)[[1]])=="try-error")) {	
-#		return(blank_result)
-#	}
-#	pp_element = anova(h0, h1, test="Chisq")[2,"Pr(Chi)"]
-
 	pp_site = site_muts_obs = site_muts_exp = site_enriched = selected_sites = NA
 
 	if (!is.null(this_site_3n[[1]]) && !is.null(site_muts[[1]]) && nrow(this_site_3n)>0 && nrow(site_muts)>0 && length(which(merged_dfr[,1]>0))>1) {
-
-#		# select sites with at least one mutation		
-#		nonzero_sites = names(which(apply(merged_dfr[merged_dfr$muts>0,-1:-3, drop=F], 2, sum)>0))
-#		h2_formula = as.formula(paste("muts ~", 
-#				paste(c("trinuc", "element", nonzero_sites), collapse=" + ")))
-#		if (length(unique(merged_dfr$trinuc))==1) {
-#			h2_formula = as.formula(paste("muts ~", 
-#					paste(c("element", nonzero_sites), collapse=" + ")))
-#		}
 
 		h2_formula = stats::as.formula(ifelse(length(unique(merged_dfr$trinuc))>1, 
 				"muts ~ trinuc + element + any_site", 
@@ -224,13 +174,7 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 		
 		h2 = stats::glm(h2_formula, data=merged_dfr, family=stats::poisson)
 		pp_site = stats::anova(h1, h2, test="Chisq")[2,5]
-#		h2 = try(glm.nb(h2_formula, data=merged_dfr))
 
-#		if (class(h2)[[1]]!="try-error") {	
-#		pp_site = anova(h1, h2, test="Chisq")[2,"Pr(Chi)"]
-	#		selected_sites = grep("site", names(coef(h2)), value=T)
-	#		
-	#		site_stats = get_obs_exp(h1, apply(merged_dfr[,selected_sites,drop=F], 1, function(x) any(x>0)), merged_dfr) 	
 		site_stats = get_obs_exp(h1, merged_dfr[,"any_site"], merged_dfr) 	
 		site_muts_obs = site_stats[[1]]
 		site_muts_exp = site_stats[[2]]
@@ -267,7 +211,6 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 #### Prepare Elements
 
 split_coord_fragments_in_BED = function(i, coords) {
-	if (i %% 100 == 0) cat(i, " ")
 	lens = as.numeric(strsplit(coords[i, "V11"], ',')[[1]])
 	starts = as.numeric(strsplit(coords[i, "V12"], ',')[[1]]) + coords[i, "V2"]
 	ends = starts+lens
@@ -371,7 +314,6 @@ get_window_coords = function(coords, flank_window) {
 }
 
 get_sites_per_element = function(i, element_coords, site_gr) {
-	if(i %% 1000 == 0) cat(i, " ")
 	if (stats::runif(1)<0.01) gc()
 	
 	element_gr = GenomicRanges::GRanges(element_coords[i, "chr"], 
@@ -419,11 +361,7 @@ prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.c
 	raw_site_coords$chr = gsub("chr", "", raw_site_coords$chr, ignore.case = TRUE)
 	raw_site_coords$chr = paste0("chr", raw_site_coords$chr)
 
-	cat("read sites\n")
-
 	element_coords_1 = prepare_element_coords_from_BED(elements_file)
-
-	cat("read elements\n")
 
 	element_coords = coords_sanity(element_coords_1)
 	element_3n = add_trinucs_by_elements(get_3n(element_coords))
@@ -454,8 +392,6 @@ prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.c
 	site_coords = coords_sanity(site_coords)
 	site_3n = get_3n(site_coords)
 
-	cat("done preparing elements\n")
-
 	list(element_coords=element_coords_1, element_3n=element_3n, window_coords=window_coords, window_3n=window_3n, site_coords=site_coords, site_3n=site_3n)
 
 }
@@ -483,9 +419,6 @@ get_3n_context_of_mutations = function(mutations) {
 	new_triples[which_to_complement] = as.character(Biostrings::complement(Biostrings::DNAStringSet(new_triples[which_to_complement])))
 	new_alt[which_to_complement] = as.character(Biostrings::complement(Biostrings::DNAStringSet(new_alt[which_to_complement])))
 	mutations_snv$tag = paste0(new_triples, ">", new_alt)
-#	ref2 = substr(triples, 2,2)
-#	mutations_snv[ref2!=mutations_snv$ref, "tag"] = "dubref"
-#	mutations_snv = mutations_snv[mutations_snv$tag!="dubref",]
 	
 	if (nrow(mutations_mnv)==0) {
 		return(mutations_snv)
@@ -513,8 +446,6 @@ format_maf = function(maf_filename, filter_hyper_MB) {
 		hyper_tab = sample_mut_count[sample_mut_count>total_muts_filter]
 		spl_rm = names(hyper_tab)
 		no_mut_rm = sum(hyper_tab)
-		# cat(length(spl_rm), "remove hypermut, n=", no_mut_rm, ", ", round(100*no_mut_rm/nrow(maf)), "%\n")
-		# cat("hypermuted samples: ", spl_rm, "\n\n")
 		maf = maf[!maf$patient %in% spl_rm,, drop=F]
 	}
 
@@ -538,17 +469,6 @@ format_maf = function(maf_filename, filter_hyper_MB) {
 	maf = get_3n_context_of_mutations(maf)
 	maf
 }
-
-# split_maf_by_cancer_type = function(maf, cancer_types_list) {
-# 	maf1 = maf
-# 	return_val = list()
-# 	for (cc in names(cancer_types_list)) {
-# 		maf = maf1[maf1$cc %in% cancer_types_list[[cc]],,drop=F]
-# 		return_val[[cc]] = maf
-# 		rm(maf)
-# 	}
-# 	return_val
-# }
 
 merge_granges_overlaps = function(muts_gr, muts_tab, regs_gr, regs_tab, compute_overlap=F) {
 	overlaps_found = GenomicRanges::findOverlaps(muts_gr, regs_gr)
@@ -580,22 +500,8 @@ merge_elements_snvs = function(coords, snvs) {
 	m_e
 }
 
-# get_element_mutations = function(element_coords, window_coords, site_coords, cancer_type_mutations) {
-# 	mutations_in_sites = merge_elements_snvs(site_coords, cancer_type_mutations)
-# 	mutations_in_elements = merge_elements_snvs(element_coords, cancer_type_mutations)
-# 	mutations_in_windows = merge_elements_snvs(window_coords, cancer_type_mutations)
-# 	list(mutations_in_sites=mutations_in_sites, mutations_in_elements=mutations_in_elements, mutations_in_windows=mutations_in_windows)	
-# }
-
 get_todo_for_elements = function(element_coords, mutations_in_elements) {
 	elements_with_muts = intersect(element_coords$id, mutations_in_elements$reg_id)
-
-	if (length(elements_with_muts) == 0) {
-		return(NULL)
-	}
-
-	# this_todo = cbind(cancer_type=cancer_type, element_id=elements_with_muts)
-	elements_with_muts
 }
 
 get_unmutated_elements = function(element_coords, mutations_in_elements) {
@@ -608,7 +514,6 @@ get_unmutated_elements = function(element_coords, mutations_in_elements) {
 	blank_result = data.frame(id=elements_without_muts, pp_site=NA, pp_element=NA, element_muts_obs=NA, 
 					element_muts_exp=NA, element_enriched=NA, site_muts_obs=NA, site_muts_exp=NA, site_enriched=NA,
 					selected_sites=NA, h0_df=NA, h1_df=NA, stringsAsFactors=F)
-	# as.matrix(cbind(blank_result, cancer_type, stringsAsFactors=F))
 	as.matrix(blank_result)
 }
 
@@ -628,15 +533,13 @@ fix_all_results = function(all_results) {
 	resi[!is.na(resi$pp_element) & resi$pp_element==0,"pp_element"] = 1e-300
 	resi[!is.na(resi$pp_site) & resi$pp_site==0,"pp_site"] = 1e-300
 	
-	## remove duplicated entries that come from computing the same element/cc/mut in multiple rounds
-	# resi_tag = paste(resi[,"id"], resi[,"cancer_type"], sep="__")
+	## remove duplicated entries that come from computing the same element/mut in multiple rounds
 	resi_tag = resi[,"id"]
 	resi = resi[!duplicated(resi_tag),]
 	resi
 }
 
 get_signf_results = function(all_res) {
-	# this_results = all_res[all_res$cancer_type==cancer_type,]
 	this_results = all_res
 	if (nrow(this_results)==0) {
 		return(NULL)
@@ -645,8 +548,6 @@ get_signf_results = function(all_res) {
 	this_results$fdr_element = stats::p.adjust(this_results$pp_element, method="fdr", n=nrow(this_results))
 	
 	this_results = this_results[order(this_results$fdr_element),]
-	# this_results$gene = gsub("(.+)::(.+)::(.+)::(.+)", "\\3", this_results$id)
-	# this_results$is_cancer_gene = c("","*")[1+c(this_results$gene %in% cgc2016)]
 	
 	filtered_results = this_results[!is.na(this_results$fdr_element) & this_results$fdr_element<0.05,]
 	unsignf_results = this_results[is.na(this_results$fdr_element) | this_results$fdr_element>=0.05,]
@@ -693,68 +594,27 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 
 	maf = format_maf(mutations_file, filter_hyper_MB)
 
-	cat("formatted mutations\n")
-
-	# cancer_types = unique(maf$cc)
-	# cancer_types_list = lapply(cancer_types, c)
-	# names(cancer_types_list) = cancer_types
-	# meta_cohorts = list()
-	# meta_cohorts$PANCANCER = cancer_types
-	# cancer_types_list = c(cancer_types_list, meta_cohorts)
-
-	# patient2cancer_type = unique(maf[,c("patient", "cc")])
-	# patient2cancer_type = structure(patient2cancer_type$cc, names=patient2cancer_type$patient)
-
-	# maf_by_cancer_type = split_maf_by_cancer_type(maf, cancer_types_list)
-
-	# cancer_types_names = names(cancer_types_list)
-	# names(cancer_types_names) = names(cancer_types_list)
-
-	# element_mutations = parallel::mclapply(cancer_types_names, function(cancer_type) {
-	# 		get_element_mutations(element_coords, window_coords, site_coords, maf_by_cancer_type[[cancer_type]])
-	# 	}, mc.cores=mc.cores, mc.preschedule=F)
 	mutations_in_sites = merge_elements_snvs(site_coords, maf)
 	mutations_in_elements = merge_elements_snvs(element_coords, maf)
 	mutations_in_windows = merge_elements_snvs(window_coords, maf)
 
-	cat("got element mutations\n")
 
-	# not_done = do.call(rbind, parallel::mclapply(names(cancer_types_list), function(cancer_type) {
-	# 	get_todo_for_elements(cancer_type, element_coords, element_mutations[[cancer_type]]$mutations_in_elements)
-	# }, mc.cores=mc.cores))
 	not_done = get_todo_for_elements(element_coords, mutations_in_elements)
 
-	cat("todo: ", length(not_done), "\n")
-
 	all_results = do.call(rbind, parallel::mclapply(1:length(not_done), function(i) {
-		cat(i, " ")
-		# cancer_type = not_done[i, "cancer_type"]
 		element_id = not_done[i]
-
-		# mutations_in_elements = element_mutations[[cancer_type]]$mutations_in_elements
-		# mutations_in_sites = element_mutations[[cancer_type]]$mutations_in_sites
-		# mutations_in_windows = element_mutations[[cancer_type]]$mutations_in_windows
 
 		result = regress_test(element_id, mutations_in_sites, mutations_in_elements,
 			mutations_in_windows, site_3n, element_3n, window_3n)
-		# result = cbind(result, cancer_type, stringsAsFactors=F)
 	}, mc.cores = mc.cores))
 
-	cat("\nperformed regression test\n")
-
 	mutated_results = as.matrix(all_results)
-	# unmutated_results = do.call(rbind, lapply(names(cancer_types_list), function(cancer_type) {
-	# 		get_unmutated_elements(cancer_type, element_coords, element_mutations[[cancer_type]]$mutations_in_elements)
-	# 	}))
 	unmutated_results =  get_unmutated_elements(element_coords, mutations_in_elements)
 
 	all_results = rbind(mutated_results, unmutated_results)
 	all_results_fixed = fix_all_results(all_results)
 
-	# all_results_signf = do.call(rbind, lapply(names(cancer_types_list), function(cancer_type) get_signf_results(cancer_type, all_results_fixed)))
 	all_results_signf = get_signf_results(all_results_fixed)
-
-	cat("done preparing results\n")
 
 	all_results_signf
 }
