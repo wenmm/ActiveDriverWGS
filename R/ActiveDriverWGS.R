@@ -279,6 +279,8 @@ split_coord_fragments_in_BED = function(i, coords) {
 prepare_element_coords_from_BED = function(fname) {
 	input = utils::read.delim(fname, stringsAsFactors=F, header=F)
 	colnames(input) = paste0("V", 1:ncol(input))
+	input$V1 = gsub("chr", "", input$V1, ignore.case = TRUE)
+	input$V1 = paste0("chr", input$V1)
 	coords = do.call(rbind, lapply(1:nrow(input), split_coord_fragments_in_BED, input))
 	coords = data.frame(coords, stringsAsFactors=F)
 	coords$starts = as.numeric(coords$starts)
