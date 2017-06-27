@@ -110,7 +110,7 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 	# indels might hit multiple sites or elements !!!
 	# therefore keep only one copy of every individual mutation
 	muts_cols = c("mut_chr", "mut_pos1", "mut_pos2", "mut_ref", 
-			"mut_alt", "mut_patient", "mut_cc", "mut_tag")
+			"mut_alt", "mut_patient", "mut_tag")
 	site_muts = site_muts[!duplicated(site_muts[,muts_cols]),,drop=F]
 	element_muts = element_muts[!duplicated(element_muts[,muts_cols]),,drop=F]
 	window_muts = window_muts[!duplicated(window_muts[,muts_cols]),,drop=F]
@@ -497,11 +497,11 @@ format_maf = function(maf_filename, filter_hyper_MB) {
 
 	maf = utils::read.delim(maf_filename, stringsAsFactors = FALSE, header = FALSE)
 	
-	if (ncol(maf) != 7) {
+	if (ncol(maf) != 6) {
 		stop("Error: mutation file is not in the correct format")
 	}
 
-	colnames(maf) = c("chr", "pos1", "pos2", "ref", "alt", "patient", "cc")
+	colnames(maf) = c("chr", "pos1", "pos2", "ref", "alt", "patient")
 	gc()
 	
 	# remove hypermutated samples, according to muts/megabase rate defined
@@ -537,16 +537,16 @@ format_maf = function(maf_filename, filter_hyper_MB) {
 	maf
 }
 
-split_maf_by_cancer_type = function(maf, cancer_types_list) {
-	maf1 = maf
-	return_val = list()
-	for (cc in names(cancer_types_list)) {
-		maf = maf1[maf1$cc %in% cancer_types_list[[cc]],,drop=F]
-		return_val[[cc]] = maf
-		rm(maf)
-	}
-	return_val
-}
+# split_maf_by_cancer_type = function(maf, cancer_types_list) {
+# 	maf1 = maf
+# 	return_val = list()
+# 	for (cc in names(cancer_types_list)) {
+# 		maf = maf1[maf1$cc %in% cancer_types_list[[cc]],,drop=F]
+# 		return_val[[cc]] = maf
+# 		rm(maf)
+# 	}
+# 	return_val
+# }
 
 merge_granges_overlaps = function(muts_gr, muts_tab, regs_gr, regs_tab, compute_overlap=F) {
 	overlaps_found = GenomicRanges::findOverlaps(muts_gr, regs_gr)
@@ -578,24 +578,25 @@ merge_elements_snvs = function(coords, snvs) {
 	m_e
 }
 
-get_element_mutations = function(element_coords, window_coords, site_coords, cancer_type_mutations) {
-	mutations_in_sites = merge_elements_snvs(site_coords, cancer_type_mutations)
-	mutations_in_elements = merge_elements_snvs(element_coords, cancer_type_mutations)
-	mutations_in_windows = merge_elements_snvs(window_coords, cancer_type_mutations)
-	list(mutations_in_sites=mutations_in_sites, mutations_in_elements=mutations_in_elements, mutations_in_windows=mutations_in_windows)	
-}
+# get_element_mutations = function(element_coords, window_coords, site_coords, cancer_type_mutations) {
+# 	mutations_in_sites = merge_elements_snvs(site_coords, cancer_type_mutations)
+# 	mutations_in_elements = merge_elements_snvs(element_coords, cancer_type_mutations)
+# 	mutations_in_windows = merge_elements_snvs(window_coords, cancer_type_mutations)
+# 	list(mutations_in_sites=mutations_in_sites, mutations_in_elements=mutations_in_elements, mutations_in_windows=mutations_in_windows)	
+# }
 
-get_todo_for_elements = function(cancer_type, element_coords, mutations_in_elements) {
+get_todo_for_elements = function(element_coords, mutations_in_elements) {
 	elements_with_muts = intersect(element_coords$id, mutations_in_elements$reg_id)
 
 	if (length(elements_with_muts) == 0) {
 		return(NULL)
 	}
 
-	this_todo = cbind(cancer_type=cancer_type, element_id=elements_with_muts)
+	# this_todo = cbind(cancer_type=cancer_type, element_id=elements_with_muts)
+	elements_with_muts
 }
 
-get_unmutated_elements = function(cancer_type, element_coords, mutations_in_elements) {
+get_unmutated_elements = function(element_coords, mutations_in_elements) {
 	elements_without_muts = setdiff(element_coords$id, mutations_in_elements$reg_id)
 	
 	if (length(elements_without_muts) == 0) {
@@ -605,7 +606,8 @@ get_unmutated_elements = function(cancer_type, element_coords, mutations_in_elem
 	blank_result = data.frame(id=elements_without_muts, pp_site=NA, pp_element=NA, element_muts_obs=NA, 
 					element_muts_exp=NA, element_enriched=NA, site_muts_obs=NA, site_muts_exp=NA, site_enriched=NA,
 					selected_sites=NA, h0_df=NA, h1_df=NA, stringsAsFactors=F)
-	as.matrix(cbind(blank_result, cancer_type, stringsAsFactors=F))
+	# as.matrix(cbind(blank_result, cancer_type, stringsAsFactors=F))
+	as.matrix(blank_result)
 }
 
 fix_all_results = function(all_results) {
@@ -625,13 +627,15 @@ fix_all_results = function(all_results) {
 	resi[!is.na(resi$pp_site) & resi$pp_site==0,"pp_site"] = 1e-300
 	
 	## remove duplicated entries that come from computing the same element/cc/mut in multiple rounds
-	resi_tag = paste(resi[,"id"], resi[,"cancer_type"], sep="__")
+	# resi_tag = paste(resi[,"id"], resi[,"cancer_type"], sep="__")
+	resi_tag = resi[,"id"]
 	resi = resi[!duplicated(resi_tag),]
 	resi
 }
 
-get_signf_results = function(cancer_type, all_res) {
-	this_results = all_res[all_res$cancer_type==cancer_type,]
+get_signf_results = function(all_res) {
+	# this_results = all_res[all_res$cancer_type==cancer_type,]
+	this_results = all_res
 	if (nrow(this_results)==0) {
 		return(NULL)
 	}
@@ -668,8 +672,8 @@ get_signf_results = function(cancer_type, all_res) {
 #' ActiveDriverWGS analysis of cancer mutation information
 #'
 #' @param prepared_elements the elements and active sites to analyze, prepared by \code{\link{prepare_elements}}
-#' @param mutations_file path to a tab deliminated text file with 7 columns
-#'    (chromosome, start position, end position, reference allele, alternate allele, patient identifier, cancer type)
+#' @param mutations_file path to a tab deliminated text file with 6 columns
+#'    (chromosome, start position, end position, reference allele, alternate allele, patient identifier)
 #' @param filter_hyper_MB numeric specifying the mutation frequency to filter. Default value is 30
 #' @param mc.cores numeric indicating the number of computing cores to use. Default value is 1.
 #'
@@ -689,58 +693,64 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 
 	cat("formatted mutations\n")
 
-	cancer_types = unique(maf$cc)
-	cancer_types_list = lapply(cancer_types, c)
-	names(cancer_types_list) = cancer_types
-	meta_cohorts = list()
-	meta_cohorts$PANCANCER = cancer_types
-	cancer_types_list = c(cancer_types_list, meta_cohorts)
+	# cancer_types = unique(maf$cc)
+	# cancer_types_list = lapply(cancer_types, c)
+	# names(cancer_types_list) = cancer_types
+	# meta_cohorts = list()
+	# meta_cohorts$PANCANCER = cancer_types
+	# cancer_types_list = c(cancer_types_list, meta_cohorts)
 
-	patient2cancer_type = unique(maf[,c("patient", "cc")])
-	patient2cancer_type = structure(patient2cancer_type$cc, names=patient2cancer_type$patient)
+	# patient2cancer_type = unique(maf[,c("patient", "cc")])
+	# patient2cancer_type = structure(patient2cancer_type$cc, names=patient2cancer_type$patient)
 
-	maf_by_cancer_type = split_maf_by_cancer_type(maf, cancer_types_list)
+	# maf_by_cancer_type = split_maf_by_cancer_type(maf, cancer_types_list)
 
-	cancer_types_names = names(cancer_types_list)
-	names(cancer_types_names) = names(cancer_types_list)
+	# cancer_types_names = names(cancer_types_list)
+	# names(cancer_types_names) = names(cancer_types_list)
 
-	element_mutations = parallel::mclapply(cancer_types_names, function(cancer_type) {
-			get_element_mutations(element_coords, window_coords, site_coords, maf_by_cancer_type[[cancer_type]])
-		}, mc.cores=mc.cores, mc.preschedule=F)
+	# element_mutations = parallel::mclapply(cancer_types_names, function(cancer_type) {
+	# 		get_element_mutations(element_coords, window_coords, site_coords, maf_by_cancer_type[[cancer_type]])
+	# 	}, mc.cores=mc.cores, mc.preschedule=F)
+	mutations_in_sites = merge_elements_snvs(site_coords, maf)
+	mutations_in_elements = merge_elements_snvs(element_coords, maf)
+	mutations_in_windows = merge_elements_snvs(window_coords, maf)
 
 	cat("got element mutations\n")
 
-	not_done = do.call(rbind, parallel::mclapply(names(cancer_types_list), function(cancer_type) {
-		get_todo_for_elements(cancer_type, element_coords, element_mutations[[cancer_type]]$mutations_in_elements)
-	}, mc.cores=mc.cores))
+	# not_done = do.call(rbind, parallel::mclapply(names(cancer_types_list), function(cancer_type) {
+	# 	get_todo_for_elements(cancer_type, element_coords, element_mutations[[cancer_type]]$mutations_in_elements)
+	# }, mc.cores=mc.cores))
+	not_done = get_todo_for_elements(element_coords, mutations_in_elements)
 
-	cat("todo: ", nrow(not_done), "\n")
+	cat("todo: ", length(not_done), "\n")
 
-	all_results = do.call(rbind, parallel::mclapply(1:nrow(not_done), function(i) {
+	all_results = do.call(rbind, parallel::mclapply(1:length(not_done), function(i) {
 		cat(i, " ")
-		cancer_type = not_done[i, "cancer_type"]
-		element_id = not_done[i, "element_id"]
+		# cancer_type = not_done[i, "cancer_type"]
+		element_id = not_done[i]
 
-		mutations_in_elements = element_mutations[[cancer_type]]$mutations_in_elements
-		mutations_in_sites = element_mutations[[cancer_type]]$mutations_in_sites
-		mutations_in_windows = element_mutations[[cancer_type]]$mutations_in_windows
+		# mutations_in_elements = element_mutations[[cancer_type]]$mutations_in_elements
+		# mutations_in_sites = element_mutations[[cancer_type]]$mutations_in_sites
+		# mutations_in_windows = element_mutations[[cancer_type]]$mutations_in_windows
 
 		result = regress_test(element_id, mutations_in_sites, mutations_in_elements,
 			mutations_in_windows, site_3n, element_3n, window_3n)
-		result = cbind(result, cancer_type, stringsAsFactors=F)
+		# result = cbind(result, cancer_type, stringsAsFactors=F)
 	}, mc.cores = mc.cores))
 
 	cat("\nperformed regression test\n")
 
 	mutated_results = as.matrix(all_results)
-	unmutated_results = do.call(rbind, lapply(names(cancer_types_list), function(cancer_type) {
-			get_unmutated_elements(cancer_type, element_coords, element_mutations[[cancer_type]]$mutations_in_elements)
-		}))
+	# unmutated_results = do.call(rbind, lapply(names(cancer_types_list), function(cancer_type) {
+	# 		get_unmutated_elements(cancer_type, element_coords, element_mutations[[cancer_type]]$mutations_in_elements)
+	# 	}))
+	unmutated_results =  get_unmutated_elements(element_coords, mutations_in_elements)
 
 	all_results = rbind(mutated_results, unmutated_results)
 	all_results_fixed = fix_all_results(all_results)
 
-	all_results_signf = do.call(rbind, lapply(names(cancer_types_list), function(cancer_type) get_signf_results(cancer_type, all_results_fixed)))
+	# all_results_signf = do.call(rbind, lapply(names(cancer_types_list), function(cancer_type) get_signf_results(cancer_type, all_results_fixed)))
+	all_results_signf = get_signf_results(all_results_fixed)
 
 	cat("done preparing results\n")
 

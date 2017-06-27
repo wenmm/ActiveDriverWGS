@@ -10,8 +10,8 @@ find_drivers(prepared_elements, mutations_file, filter_hyper_MB = 30,
 \arguments{
 \item{prepared_elements}{the elements and active sites to analyze, prepared by \code{\link{prepare_elements}}}
 
-\item{mutations_file}{path to a tab deliminated text file with 7 columns
-(chromosome, start position, end position, reference allele, alternate allele, patient identifier, cancer type)}
+\item{mutations_file}{path to a tab deliminated text file with 6 columns
+(chromosome, start position, end position, reference allele, alternate allele, patient identifier)}
 
 \item{filter_hyper_MB}{numeric specifying the mutation frequency to filter. Default value is 30}
 
