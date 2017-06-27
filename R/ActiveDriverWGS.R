@@ -428,46 +428,45 @@ get_3n_context_of_mutations = function(mutations) {
 	rbind(mutations_snv, mutations_mnv)
 }
 
-format_maf = function(maf_filename, filter_hyper_MB) {
+format_muts = function(muts_filename, filter_hyper_MB) {
 
-	maf = utils::read.delim(maf_filename, stringsAsFactors = FALSE, header = FALSE)
+	muts = utils::read.delim(muts_filename, stringsAsFactors = FALSE, header = FALSE)
 	
-	if (ncol(maf) != 6) {
+	if (ncol(muts) != 6) {
 		stop("Error: mutation file is not in the correct format")
 	}
 
-	colnames(maf) = c("chr", "pos1", "pos2", "ref", "alt", "patient")
-	gc()
+	colnames(muts) = c("chr", "pos1", "pos2", "ref", "alt", "patient")
 	
 	# remove hypermutated samples, according to muts/megabase rate defined
 	if (!is.na(filter_hyper_MB) & filter_hyper_MB>0) {
 		total_muts_filter = 3000*filter_hyper_MB
-		sample_mut_count = table(maf$patient)
+		sample_mut_count = table(muts$patient)
 		hyper_tab = sample_mut_count[sample_mut_count>total_muts_filter]
 		spl_rm = names(hyper_tab)
 		no_mut_rm = sum(hyper_tab)
-		maf = maf[!maf$patient %in% spl_rm,, drop=F]
+		muts = muts[!muts$patient %in% spl_rm,, drop=F]
 	}
 
 	# keep only relevant chrs, make sure CHR is present in address
-	maf$chr = gsub("chr", "", maf$chr, ignore.case=TRUE)
-	maf = maf[maf$chr %in% c(1:22, "Y", "X", "M"),]	
-	maf$chr = paste0("chr", maf$chr)
+	muts$chr = gsub("chr", "", muts$chr, ignore.case=TRUE)
+	muts = muts[muts$chr %in% c(1:22, "Y", "X", "M"),]	
+	muts$chr = paste0("chr", muts$chr)
 	
-	maf$pos1 = as.numeric(maf$pos1)
-	maf$pos2 = as.numeric(maf$pos2)
+	muts$pos1 = as.numeric(muts$pos1)
+	muts$pos2 = as.numeric(muts$pos2)
 	
 	# reverse start/end coordinates of deletions
-	rev_coords = which(maf$pos2-maf$pos1<0)
+	rev_coords = which(muts$pos2-muts$pos1<0)
 	if (length(rev_coords)>0) {
-		pos1 = maf[rev_coords, "pos1"]
-		pos2 = maf[rev_coords, "pos2"]
-		maf[rev_coords, "pos1"] = pos2
-		maf[rev_coords, "pos2"] = pos1
+		pos1 = muts[rev_coords, "pos1"]
+		pos2 = muts[rev_coords, "pos2"]
+		muts[rev_coords, "pos1"] = pos2
+		muts[rev_coords, "pos2"] = pos1
 		rm(pos1, pos2)
 	}
-	maf = get_3n_context_of_mutations(maf)
-	maf
+	muts = get_3n_context_of_mutations(muts)
+	muts
 }
 
 merge_granges_overlaps = function(muts_gr, muts_tab, regs_gr, regs_tab, compute_overlap=F) {
@@ -592,18 +591,15 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 	site_coords = prepared_elements$site_coords
 	site_3n = prepared_elements$site_3n
 
-	maf = format_maf(mutations_file, filter_hyper_MB)
+	muts = format_muts(mutations_file, filter_hyper_MB)
 
-	mutations_in_sites = merge_elements_snvs(site_coords, maf)
-	mutations_in_elements = merge_elements_snvs(element_coords, maf)
-	mutations_in_windows = merge_elements_snvs(window_coords, maf)
-
+	mutations_in_sites = merge_elements_snvs(site_coords, muts)
+	mutations_in_elements = merge_elements_snvs(element_coords, muts)
+	mutations_in_windows = merge_elements_snvs(window_coords, muts)
 
 	not_done = get_todo_for_elements(element_coords, mutations_in_elements)
-
 	all_results = do.call(rbind, parallel::mclapply(1:length(not_done), function(i) {
 		element_id = not_done[i]
-
 		result = regress_test(element_id, mutations_in_sites, mutations_in_elements,
 			mutations_in_windows, site_3n, element_3n, window_3n)
 	}, mc.cores = mc.cores))
