@@ -580,7 +580,7 @@ get_signf_results = function(all_res) {
 
 #' ActiveDriverWGS analysis of cancer mutation information
 #'
-#' @param prepared_elements the elements and active sites to analyze, prepared by \code{\link{prepare_elements}}
+#' @param prepared_elements the elements and active sites to analyze, as prepared by \code{\link{prepare_elements}}
 #' @param mutations_file path to a tab deliminated text file with 6 columns
 #'    (chromosome, start position, end position, reference allele, alternate allele, patient identifier)
 #' @param filter_hyper_MB numeric specifying the mutation frequency to filter. Default value is 30
