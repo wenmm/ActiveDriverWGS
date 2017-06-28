@@ -360,8 +360,10 @@ prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.c
 	colnames(raw_site_coords) = c("chr", "starts", "ends", "site_info")
 	raw_site_coords$chr = gsub("chr", "", raw_site_coords$chr, ignore.case = TRUE)
 	raw_site_coords$chr = paste0("chr", raw_site_coords$chr)
+	cat("Successfully read active sites\n")
 
 	element_coords_1 = prepare_element_coords_from_BED(elements_file)
+	cat("Successfully read elements\n")
 
 	element_coords = coords_sanity(element_coords_1)
 	element_3n = add_trinucs_by_elements(get_3n(element_coords))
@@ -381,12 +383,12 @@ prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.c
 		overlaps_found = GenomicRanges::findOverlaps(element_gr, site_gr)
 		site_here_gr = site_gr[S4Vectors::subjectHits(overlaps_found)]
 
-		rm(site_gr, element_gr)
+		rm(site_gr, element_gr, overlaps_found)
 	
 		site_coords = do.call(rbind, parallel::mclapply(1:nrow(element_coords), 
 			get_sites_per_element, element_coords, site_here_gr, mc.cores=mc.cores))
+		rm(site_here_gr)
 	}
-
 	rm(element_coords)
 
 	site_coords = coords_sanity(site_coords)
@@ -568,7 +570,12 @@ get_signf_results = function(all_res) {
 	}
 	
 	
-	rbind(filtered_results, unsignf_results)
+	final_results = rbind(filtered_results, unsignf_results)
+	final_results$pp_element = replace(final_results$pp_element, which(is.na(final_results$pp_element)), 1)
+	final_results$pp_site = replace(final_results$pp_site, which(is.na(final_results$pp_site)), 1)
+	final_results$fdr_element = replace(final_results$fdr_element, which(is.na(final_results$fdr_element)), 1)
+	final_results$fdr_site = replace(final_results$fdr_site, which(is.na(final_results$fdr_site)), 1)
+	final_results
 }
 
 #' ActiveDriverWGS analysis of cancer mutation information
@@ -590,27 +597,35 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 	window_3n = prepared_elements$window_3n
 	site_coords = prepared_elements$site_coords
 	site_3n = prepared_elements$site_3n
+	rm(prepared_elements)
 
 	muts = format_muts(mutations_file, filter_hyper_MB)
+	rm(mutations_file)
+	cat("Successfully read mutations\n")
 
 	mutations_in_sites = merge_elements_snvs(site_coords, muts)
 	mutations_in_elements = merge_elements_snvs(element_coords, muts)
 	mutations_in_windows = merge_elements_snvs(window_coords, muts)
+	rm(muts)
 
 	not_done = get_todo_for_elements(element_coords, mutations_in_elements)
-	all_results = do.call(rbind, parallel::mclapply(1:length(not_done), function(i) {
+	cat("Tests to do: ", length(not_done), "\n")
+	mutated_results = do.call(rbind, parallel::mclapply(1:length(not_done), function(i) {
+		if (i %% 100 == 0) cat(i, "\n")
 		element_id = not_done[i]
 		result = regress_test(element_id, mutations_in_sites, mutations_in_elements,
 			mutations_in_windows, site_3n, element_3n, window_3n)
 	}, mc.cores = mc.cores))
+	rm(element_3n, window_coords, window_3n, site_coords, site_3n, mutations_in_sites, mutations_in_windows, not_done)
 
-	mutated_results = as.matrix(all_results)
+	mutated_results = as.matrix(mutated_results)
 	unmutated_results =  get_unmutated_elements(element_coords, mutations_in_elements)
+	rm(element_coords, mutations_in_elements)
 
 	all_results = rbind(mutated_results, unmutated_results)
-	all_results_fixed = fix_all_results(all_results)
+	rm(mutated_results, unmutated_results)
 
-	all_results_signf = get_signf_results(all_results_fixed)
-
-	all_results_signf
+	all_results = fix_all_results(all_results)
+	all_results = get_signf_results(all_results)
+	all_results
 }
