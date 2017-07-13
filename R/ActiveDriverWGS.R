@@ -349,51 +349,125 @@ get_sites_per_element = function(i, element_coords, site_gr) {
 #' @param elements_file path to a BED12 file of the elements to analyze
 #' @param sites_file path to a BED4 file of active sites to use in the analysis
 #' @param window_size numeric value for the size of the background sequence window to use on each side of the given elements. Default value is 50000.
+#' @param recovery_dir path to a directory for ActiveDriverWGS to store intermediate computations in.
+#'             In the case that prepare_elements does not complete, run it again with the same value for this parameter,
+#'             and it will read the intermediate computations rather than compute them again. Please specify a
+#'             different directory, or delete the ActiveDriverWGS data in a previously used directory, if running with
+#'             different data. Default value is NA, and prepare_elements will not save any intermediate information with this value.
 #' @param mc.cores numeric indicating the number of computing cores to use. Default value is 1.
 #'
 #' @return list containing element and active site information needed for ActiveDriverWGS analysis
 #'
 #' @export
-prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.cores = 1) {
+prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.cores = 1, recovery_dir = NA) {
 	
-	raw_site_coords = utils::read.delim(sites_file, stringsAsFactors = FALSE, header = FALSE)
-	colnames(raw_site_coords) = c("chr", "starts", "ends", "site_info")
-	raw_site_coords$chr = gsub("chr", "", raw_site_coords$chr, ignore.case = TRUE)
-	raw_site_coords$chr = paste0("chr", raw_site_coords$chr)
-	cat("Successfully read active sites\n")
-
-	element_coords_1 = prepare_element_coords_from_BED(elements_file)
-	cat("Successfully read elements\n")
+	element_coords_filename = "/ADWGS_elements_coords_recovery_file.rsav"
+	element_coords_1 = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, element_coords_filename))) {
+		load(paste0(recovery_dir, element_coords_filename))
+		cat("Recovered elements\n")
+	} else {
+		element_coords_1 = prepare_element_coords_from_BED(elements_file)
+		if (!is.na(recovery_dir)) {
+			save(element_coords_1, file = paste0(recovery_dir, element_coords_filename))
+		}
+		cat("Successfully read elements\n")
+	}
 
 	element_coords = coords_sanity(element_coords_1)
-	element_3n = add_trinucs_by_elements(get_3n(element_coords))
-	window_coords = coords_sanity(get_window_coords(element_coords, window_size))
-	window_3n = add_trinucs_by_elements(get_3n(window_coords))
+
+	element_3n_filename = "/ADWGS_element_3n_recovery_file.rsav"
+	element_3n = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, element_3n_filename))) {
+		load(paste0(recovery_dir, element_3n_filename))
+	} else {
+		element_3n = add_trinucs_by_elements(get_3n(element_coords))
+		if (!is.na(recovery_dir)) {
+			save(element_3n, file = paste0(recovery_dir, element_3n_filename))
+		}
+	}
+
+	window_coords_filename = "/ADWGS_window_coords_recovery_file.rsav"
+	window_coords = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, window_coords_filename))) {
+		load(paste0(recovery_dir, window_coords_filename))
+	} else {
+		window_coords = coords_sanity(get_window_coords(element_coords, window_size))
+		if (!is.na(recovery_dir)) {
+			save(window_coords, file = paste0(recovery_dir, window_coords_filename))
+		}
+	}
+
+	window_3n_filename = "/ADWGS_window_3n_recovery_file.rsav"
+	window_3n = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, window_3n_filename))) {
+		load(paste0(recovery_dir, window_3n_filename))
+	} else {
+		window_3n = add_trinucs_by_elements(get_3n(window_coords))
+		if (!is.na(recovery_dir)) {
+			save(window_3n, file = paste0(recovery_dir, window_3n_filename))
+		}
+	}
+	
+	raw_site_coords_filename = "/ADWGS_raw_site_coords_recovery_file.rsav"
+	site_coords_filename = "/ADWGS_site_coords_recovery_file.rsav"
+	raw_site_coords = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, raw_site_coords_filename)) & !file.exists(paste0(recovery_dir, site_coords_filename))) {
+		load(paste0(recovery_dir, raw_site_coords_filename))
+		cat("Recovered active sites\n")
+	} else if (!file.exists(paste0(recovery_dir, site_coords_filename))) {
+		raw_site_coords = utils::read.delim(sites_file, stringsAsFactors = FALSE, header = FALSE)
+		colnames(raw_site_coords) = c("chr", "starts", "ends", "site_info")
+		raw_site_coords$chr = gsub("chr", "", raw_site_coords$chr, ignore.case = TRUE)
+		raw_site_coords$chr = paste0("chr", raw_site_coords$chr)
+		if (!is.na(recovery_dir)) {
+			save(raw_site_coords, file = paste0(recovery_dir, raw_site_coords_filename))
+		}
+		cat("Successfully read active sites\n")
+	}
 
 	site_coords = NULL
-	if (!is.null(raw_site_coords[[1]])) {
-		# first only keep sites that overlap with element coordinates
-		site_gr = GenomicRanges::GRanges(raw_site_coords$chr,
-			IRanges::IRanges(start=raw_site_coords$starts, end=raw_site_coords$ends))
-		element_gr = GenomicRanges::GRanges(element_coords$chr, 
-			IRanges::IRanges(start=element_coords$starts, end=element_coords$ends))
-
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, site_coords_filename))) {
+		load(paste0(recovery_dir, site_coords_filename))
+		cat("Recovered active sites\n")
 		rm(raw_site_coords)
+	} else {
+		if (!is.null(raw_site_coords[[1]])) {
+			# first only keep sites that overlap with element coordinates
+			site_gr = GenomicRanges::GRanges(raw_site_coords$chr,
+				IRanges::IRanges(start=raw_site_coords$starts, end=raw_site_coords$ends))
+			element_gr = GenomicRanges::GRanges(element_coords$chr, 
+				IRanges::IRanges(start=element_coords$starts, end=element_coords$ends))
 
-		overlaps_found = GenomicRanges::findOverlaps(element_gr, site_gr)
-		site_here_gr = site_gr[S4Vectors::subjectHits(overlaps_found)]
+			rm(raw_site_coords)
 
-		rm(site_gr, element_gr, overlaps_found)
+			overlaps_found = GenomicRanges::findOverlaps(element_gr, site_gr)
+			site_here_gr = site_gr[S4Vectors::subjectHits(overlaps_found)]
+
+			rm(site_gr, element_gr, overlaps_found)
 	
-		site_coords = do.call(rbind, parallel::mclapply(1:nrow(element_coords), 
-			get_sites_per_element, element_coords, site_here_gr, mc.cores=mc.cores))
-		rm(site_here_gr)
+			site_coords = do.call(rbind, parallel::mclapply(1:nrow(element_coords), 
+				get_sites_per_element, element_coords, site_here_gr, mc.cores=mc.cores))
+			rm(site_here_gr)
+			site_coords = coords_sanity(site_coords)
+		}
+		if (!is.na(recovery_dir)) {
+			save(site_coords, file = paste0(recovery_dir, site_coords_filename))
+		}
 	}
 	rm(element_coords)
 
-	site_coords = coords_sanity(site_coords)
-	site_3n = get_3n(site_coords)
-
+	site_3n_filename = "/ADWGS_site_3n_recovery_file.rsav"
+	site_3n = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, site_3n_filename))) {
+		load(paste0(recovery_dir, site_3n_filename))
+	} else {
+		site_3n = get_3n(site_coords)
+		if (!is.na(recovery_dir)) {
+			save(site_3n, file = paste0(recovery_dir, site_3n_filename))
+		}
+	}
+	
 	list(element_coords=element_coords_1, element_3n=element_3n, window_coords=window_coords, window_3n=window_3n, site_coords=site_coords, site_3n=site_3n)
 
 }
@@ -585,11 +659,16 @@ get_signf_results = function(all_res) {
 #'    (chromosome, start position, end position, reference allele, alternate allele, patient identifier)
 #' @param filter_hyper_MB numeric specifying the mutation frequency to filter. Default value is 30
 #' @param mc.cores numeric indicating the number of computing cores to use. Default value is 1.
+#' @param recovery_dir path to a directory for ActiveDriverWGS to store intermediate computations in.
+#'             In the case that find_drivers does not complete, run it again with the same value for this parameter,
+#'             and it will read the intermediate computations rather than compute them again. Please specify a
+#'             different directory, or delete the ActiveDriverWGS data in previously used directory, if running with
+#'             different data. Default value is NA, and find_drivers will not save any intermediate information.
 #'
 #' @return data.frame containing all results from the ActiveDriverWGS analysis
 #'
 #' @export
-find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30, mc.cores = 1) {
+find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30, mc.cores = 1, recovery_dir = NA) {
 
 	element_coords = prepared_elements$element_coords
 	element_3n = prepared_elements$element_3n
@@ -599,24 +678,105 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 	site_3n = prepared_elements$site_3n
 	rm(prepared_elements)
 
-	muts = format_muts(mutations_file, filter_hyper_MB)
-	rm(mutations_file)
-	cat("Successfully read mutations\n")
+	muts_filename = "/ADWGS_mutations_recovery_file.rsav"
+	mutations_in_windows_filename = "/ADWGS_mutations_in_windows_recovery_file.rsav"
+	muts = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, muts_filename)) & !file.exists(paste0(recovery_dir, mutations_in_windows_filename))) {
+		load(paste0(recovery_dir, muts_filename))
+		cat("Recovered mutations\n")
+	} else if (!file.exists(paste0(recovery_dir, mutations_in_windows_filename))) {
+		muts = format_muts(mutations_file, filter_hyper_MB)
+		if (!is.na(recovery_dir)) {
+			save(muts, file = paste0(recovery_dir, muts_filename))
+		}
+		cat("Successfully read mutations\n")
+	}
+	rm(muts_filename, mutations_file)
 
-	mutations_in_sites = merge_elements_snvs(site_coords, muts)
-	mutations_in_elements = merge_elements_snvs(element_coords, muts)
-	mutations_in_windows = merge_elements_snvs(window_coords, muts)
-	rm(muts)
+	mutations_in_sites = NULL
+	mutations_in_sites_filename = "/ADWGS_mutations_in_sites_recovery_file.rsav"
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, mutations_in_sites_filename))) {
+		load(paste0(recovery_dir, mutations_in_sites_filename))
+	} else {
+		mutations_in_sites = merge_elements_snvs(site_coords, muts)
+		if (!is.na(recovery_dir)) {
+			save(mutations_in_sites, file = paste0(recovery_dir, mutations_in_sites_filename))
+		}
+	}
+	rm(mutations_in_sites_filename)
 
-	not_done = get_todo_for_elements(element_coords, mutations_in_elements)
-	cat("Tests to do: ", length(not_done), "\n")
+	mutations_in_elements = NULL
+	mutations_in_elements_filename = "/ADWGS_mutations_in_elements_recovery_file.rsav"
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, mutations_in_elements_filename))) {
+		load(paste0(recovery_dir, mutations_in_elements_filename))
+	} else {
+		mutations_in_elements = merge_elements_snvs(element_coords, muts)
+		if (!is.na(recovery_dir)) {
+			save(mutations_in_elements, file = paste0(recovery_dir, mutations_in_elements_filename))
+		}
+	}
+	rm(mutations_in_elements_filename)
+
+	mutations_in_windows = NULL
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, mutations_in_windows_filename))) {
+		load(paste0(recovery_dir, mutations_in_windows_filename))
+		cat("Recovered prepared mutations\n")
+	} else {
+		mutations_in_windows = merge_elements_snvs(window_coords, muts)
+		if (!is.na(recovery_dir)) {
+			save(mutations_in_windows, file = paste0(recovery_dir, mutations_in_windows_filename))
+		}
+		cat("Successfully prepared mutations\n")
+	}
+	rm(mutations_in_windows_filename, muts)
+
+	not_done = NULL
+	not_done_filename = "/ADWGS_TODO_recovery_file.rsav"
+	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, not_done_filename))) {
+		load(paste0(recovery_dir, not_done_filename))
+	} else {
+		not_done = get_todo_for_elements(element_coords, mutations_in_elements)
+		if (!is.na(recovery_dir)) {
+			save(not_done, file = paste0(recovery_dir, not_done_filename))
+		}
+	}
+
+	recovered_results = NULL
+	recovered_result_numbers = c()
+	if (!is.na(recovery_dir)) {
+		results_filenames = list.files(recovery_dir, pattern = "ADWGS_result[0123456789]+_recovery_file.rsav")
+		if (length(results_filenames) > 0) results_filenames = paste0("/", results_filenames)
+		recovered_results = do.call(rbind, lapply(results_filenames, function(filename) {
+				load(paste0(recovery_dir, filename))
+				if (ncol(result) != 13) return(NULL)
+				result
+			}))
+		recovered_result_numbers = recovered_results$result_number
+		if (length(recovered_result_numbers) > 0) cat("Tests recovered: ", length(recovered_result_numbers), "\n")
+	}
+
+	cat("Tests to do: ", length(not_done) - length(recovered_result_numbers), "\n")
+
 	mutated_results = do.call(rbind, parallel::mclapply(1:length(not_done), function(i) {
+		if (i %in% recovered_result_numbers) return(NULL)
 		if (i %% 100 == 0) cat(i, "\n")
 		element_id = not_done[i]
 		result = regress_test(element_id, mutations_in_sites, mutations_in_elements,
 			mutations_in_windows, site_3n, element_3n, window_3n)
+		if (!is.na(recovery_dir)) {
+			result$result_number = i
+			save(result, file = paste0(recovery_dir, "/ADWGS_result", i, "_recovery_file.rsav"))
+		}
+		result
 	}, mc.cores = mc.cores))
 	rm(element_3n, window_coords, window_3n, site_coords, site_3n, mutations_in_sites, mutations_in_windows, not_done)
+
+	mutated_results = rbind(recovered_results, mutated_results)
+	rm(recovered_results, recovered_result_numbers)
+
+	if (!is.na(recovery_dir)) {
+		mutated_results = mutated_results[, 1:12]
+	}
 
 	mutated_results = as.matrix(mutated_results)
 	unmutated_results =  get_unmutated_elements(element_coords, mutations_in_elements)

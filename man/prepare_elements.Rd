@@ -5,7 +5,7 @@
 \title{Preparation of elements and active sites for ActiveDriverWGS analysis with the \code{\link{find_drivers}} function}
 \usage{
 prepare_elements(elements_file, sites_file, window_size = 50000,
-  mc.cores = 1)
+  mc.cores = 1, recovery_dir = NA)
 }
 \arguments{
 \item{elements_file}{path to a BED12 file of the elements to analyze}
@@ -15,6 +15,12 @@ prepare_elements(elements_file, sites_file, window_size = 50000,
 \item{window_size}{numeric value for the size of the background sequence window to use on each side of the given elements. Default value is 50000.}
 
 \item{mc.cores}{numeric indicating the number of computing cores to use. Default value is 1.}
+
+\item{recovery_dir}{path to a directory for ActiveDriverWGS to store intermediate computations in.
+In the case that prepare_elements does not complete, run it again with the same value for this parameter,
+and it will read the intermediate computations rather than compute them again. Please specify a
+different directory, or delete the ActiveDriverWGS data in a previously used directory, if running with
+different data. Default value is NA, and prepare_elements will not save any intermediate information with this value.}
 }
 \value{
 list containing element and active site information needed for ActiveDriverWGS analysis

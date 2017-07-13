@@ -5,7 +5,7 @@
 \title{ActiveDriverWGS analysis of cancer mutation information}
 \usage{
 find_drivers(prepared_elements, mutations_file, filter_hyper_MB = 30,
-  mc.cores = 1)
+  mc.cores = 1, recovery_dir = NA)
 }
 \arguments{
 \item{prepared_elements}{the elements and active sites to analyze, as prepared by \code{\link{prepare_elements}}}
@@ -16,6 +16,12 @@ find_drivers(prepared_elements, mutations_file, filter_hyper_MB = 30,
 \item{filter_hyper_MB}{numeric specifying the mutation frequency to filter. Default value is 30}
 
 \item{mc.cores}{numeric indicating the number of computing cores to use. Default value is 1.}
+
+\item{recovery_dir}{path to a directory for ActiveDriverWGS to store intermediate computations in.
+In the case that find_drivers does not complete, run it again with the same value for this parameter,
+and it will read the intermediate computations rather than compute them again. Please specify a
+different directory, or delete the ActiveDriverWGS data in previously used directory, if running with
+different data. Default value is NA, and find_drivers will not save any intermediate information.}
 }
 \value{
 data.frame containing all results from the ActiveDriverWGS analysis
