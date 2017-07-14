@@ -360,78 +360,73 @@ get_sites_per_element = function(i, element_coords, site_gr) {
 #'
 #' @export
 prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.cores = 1, recovery_dir = NA) {
-	
-	element_coords_filename = "/ADWGS_elements_coords_recovery_file.rsav"
+	try_error = "try-error"
+
+	element_coords_filename = paste0(recovery_dir, "/ADWGS_elements_coords_recovery_file.rsav")
 	element_coords_1 = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, element_coords_filename))) {
-		load(paste0(recovery_dir, element_coords_filename))
-		cat("Recovered elements\n")
-	} else {
+	load_result = suppressWarnings(try(load(element_coords_filename), silent = TRUE))
+	if (class(load_result) == try_error) {
 		element_coords_1 = prepare_element_coords_from_BED(elements_file)
 		if (!is.na(recovery_dir)) {
-			save(element_coords_1, file = paste0(recovery_dir, element_coords_filename))
+			save(element_coords_1, file = element_coords_filename)
 		}
 		cat("Successfully read elements\n")
+	} else {
+		cat("Recovered elements\n")
 	}
 
 	element_coords = coords_sanity(element_coords_1)
 
-	element_3n_filename = "/ADWGS_element_3n_recovery_file.rsav"
+	element_3n_filename = paste0(recovery_dir, "/ADWGS_element_3n_recovery_file.rsav")
 	element_3n = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, element_3n_filename))) {
-		load(paste0(recovery_dir, element_3n_filename))
-	} else {
+	load_result = suppressWarnings(try(load(element_3n_filename), silent = TRUE))
+	if (class(load_result) == try_error) {
 		element_3n = add_trinucs_by_elements(get_3n(element_coords))
 		if (!is.na(recovery_dir)) {
-			save(element_3n, file = paste0(recovery_dir, element_3n_filename))
+			save(element_3n, file = element_3n_filename)
 		}
 	}
 
-	window_coords_filename = "/ADWGS_window_coords_recovery_file.rsav"
+	window_coords_filename = paste0(recovery_dir, "/ADWGS_window_coords_recovery_file.rsav")
 	window_coords = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, window_coords_filename))) {
-		load(paste0(recovery_dir, window_coords_filename))
-	} else {
+	load_result = suppressWarnings(try(load(window_coords_filename), silent = TRUE))
+	if (class(load_result) == try_error) {
 		window_coords = coords_sanity(get_window_coords(element_coords, window_size))
 		if (!is.na(recovery_dir)) {
-			save(window_coords, file = paste0(recovery_dir, window_coords_filename))
+			save(window_coords, file = window_coords_filename)
 		}
 	}
 
-	window_3n_filename = "/ADWGS_window_3n_recovery_file.rsav"
+	window_3n_filename = paste0(recovery_dir, "/ADWGS_window_3n_recovery_file.rsav")
 	window_3n = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, window_3n_filename))) {
-		load(paste0(recovery_dir, window_3n_filename))
-	} else {
+	load_result = suppressWarnings(try(load(window_3n_filename), silent = TRUE))
+	if (class(load_result) == try_error) {
 		window_3n = add_trinucs_by_elements(get_3n(window_coords))
 		if (!is.na(recovery_dir)) {
-			save(window_3n, file = paste0(recovery_dir, window_3n_filename))
+			save(window_3n, file = window_3n_filename)
 		}
 	}
 	
-	raw_site_coords_filename = "/ADWGS_raw_site_coords_recovery_file.rsav"
-	site_coords_filename = "/ADWGS_site_coords_recovery_file.rsav"
+	raw_site_coords_filename = paste0(recovery_dir, "/ADWGS_raw_site_coords_recovery_file.rsav")
+	site_coords_filename = paste0(recovery_dir, "/ADWGS_site_coords_recovery_file.rsav")
 	raw_site_coords = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, raw_site_coords_filename)) & !file.exists(paste0(recovery_dir, site_coords_filename))) {
-		load(paste0(recovery_dir, raw_site_coords_filename))
-		cat("Recovered active sites\n")
-	} else if (!file.exists(paste0(recovery_dir, site_coords_filename))) {
-		raw_site_coords = utils::read.delim(sites_file, stringsAsFactors = FALSE, header = FALSE)
-		colnames(raw_site_coords) = c("chr", "starts", "ends", "site_info")
-		raw_site_coords$chr = gsub("chr", "", raw_site_coords$chr, ignore.case = TRUE)
-		raw_site_coords$chr = paste0("chr", raw_site_coords$chr)
-		if (!is.na(recovery_dir)) {
-			save(raw_site_coords, file = paste0(recovery_dir, raw_site_coords_filename))
-		}
-		cat("Successfully read active sites\n")
-	}
-
 	site_coords = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, site_coords_filename))) {
-		load(paste0(recovery_dir, site_coords_filename))
-		cat("Recovered active sites\n")
-		rm(raw_site_coords)
-	} else {
+	sites_load_result = suppressWarnings(try(load(site_coords_filename), silent = TRUE))
+	if (class(sites_load_result) == try_error) {
+		load_result = suppressWarnings(try(load(raw_site_coords_filename), silent = TRUE))
+		if (class(load_result) == try_error) {
+			raw_site_coords = utils::read.delim(sites_file, stringsAsFactors = FALSE, header = FALSE)
+			colnames(raw_site_coords) = c("chr", "starts", "ends", "site_info")
+			raw_site_coords$chr = gsub("chr", "", raw_site_coords$chr, ignore.case = TRUE)
+			raw_site_coords$chr = paste0("chr", raw_site_coords$chr)
+			if (!is.na(recovery_dir)) {
+				save(raw_site_coords, file = raw_site_coords_filename)
+			}
+			cat("Successfully read active sites\n")
+		} else {
+			cat("Recovered active sites\n")
+		}
+
 		if (!is.null(raw_site_coords[[1]])) {
 			# first only keep sites that overlap with element coordinates
 			site_gr = GenomicRanges::GRanges(raw_site_coords$chr,
@@ -452,19 +447,20 @@ prepare_elements = function(elements_file, sites_file, window_size = 50000, mc.c
 			site_coords = coords_sanity(site_coords)
 		}
 		if (!is.na(recovery_dir)) {
-			save(site_coords, file = paste0(recovery_dir, site_coords_filename))
+			save(site_coords, file = site_coords_filename)
 		}
-	}
-	rm(element_coords)
-
-	site_3n_filename = "/ADWGS_site_3n_recovery_file.rsav"
-	site_3n = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, site_3n_filename))) {
-		load(paste0(recovery_dir, site_3n_filename))
 	} else {
+		cat("Recovered active sites\n")
+	}
+	rm(sites_load_result, element_coords)
+
+	site_3n_filename = paste0(recovery_dir, "/ADWGS_site_3n_recovery_file.rsav")
+	site_3n = NULL
+	load_result = suppressWarnings(try(load(site_3n_filename), silent = TRUE))
+	if (class(load_result) == try_error) {
 		site_3n = get_3n(site_coords)
 		if (!is.na(recovery_dir)) {
-			save(site_3n, file = paste0(recovery_dir, site_3n_filename))
+			save(site_3n, file = site_3n_filename)
 		}
 	}
 	
@@ -669,6 +665,7 @@ get_signf_results = function(all_res) {
 #'
 #' @export
 find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30, mc.cores = 1, recovery_dir = NA) {
+	try_error = "try-error"
 
 	element_coords = prepared_elements$element_coords
 	element_3n = prepared_elements$element_3n
@@ -678,66 +675,65 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 	site_3n = prepared_elements$site_3n
 	rm(prepared_elements)
 
-	muts_filename = "/ADWGS_mutations_recovery_file.rsav"
-	mutations_in_windows_filename = "/ADWGS_mutations_in_windows_recovery_file.rsav"
+	muts_filename = paste0(recovery_dir, "/ADWGS_mutations_recovery_file.rsav")
+	mutations_in_windows_filename = paste0(recovery_dir, "/ADWGS_mutations_in_windows_recovery_file.rsav")
 	muts = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, muts_filename)) & !file.exists(paste0(recovery_dir, mutations_in_windows_filename))) {
-		load(paste0(recovery_dir, muts_filename))
-		cat("Recovered mutations\n")
-	} else if (!file.exists(paste0(recovery_dir, mutations_in_windows_filename))) {
-		muts = format_muts(mutations_file, filter_hyper_MB)
-		if (!is.na(recovery_dir)) {
-			save(muts, file = paste0(recovery_dir, muts_filename))
+	mutations_in_windows = NULL
+	in_windows_load_result = suppressWarnings(try(load(mutations_in_windows_filename), silent = TRUE))
+	if (class(in_windows_load_result) == try_error) {
+		load_result = suppressWarnings(try(load(muts_filename), silent = TRUE))
+		if (class(load_result) == try_error) {
+			muts = format_muts(mutations_file, filter_hyper_MB)
+			if (!is.na(recovery_dir)) {
+				save(muts, file = muts_filename)
+			}
+			cat("Successfully read mutations\n")
+		} else {
+			cat("Recovered mutations\n")
 		}
-		cat("Successfully read mutations\n")
 	}
 	rm(muts_filename, mutations_file)
 
 	mutations_in_sites = NULL
-	mutations_in_sites_filename = "/ADWGS_mutations_in_sites_recovery_file.rsav"
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, mutations_in_sites_filename))) {
-		load(paste0(recovery_dir, mutations_in_sites_filename))
-	} else {
+	mutations_in_sites_filename = paste0(recovery_dir, "/ADWGS_mutations_in_sites_recovery_file.rsav")
+	load_result = suppressWarnings(try(load(mutations_in_sites_filename), silent = TRUE))
+	if (class(load_result) == try_error) {
 		mutations_in_sites = merge_elements_snvs(site_coords, muts)
 		if (!is.na(recovery_dir)) {
-			save(mutations_in_sites, file = paste0(recovery_dir, mutations_in_sites_filename))
+			save(mutations_in_sites, file = mutations_in_sites_filename)
 		}
 	}
 	rm(mutations_in_sites_filename)
 
 	mutations_in_elements = NULL
-	mutations_in_elements_filename = "/ADWGS_mutations_in_elements_recovery_file.rsav"
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, mutations_in_elements_filename))) {
-		load(paste0(recovery_dir, mutations_in_elements_filename))
-	} else {
+	mutations_in_elements_filename = paste0(recovery_dir, "/ADWGS_mutations_in_elements_recovery_file.rsav")
+	load_result = suppressWarnings(try(load(mutations_in_elements_filename), silent = TRUE))
+	if(class(load_result) == try_error) {
 		mutations_in_elements = merge_elements_snvs(element_coords, muts)
 		if (!is.na(recovery_dir)) {
-			save(mutations_in_elements, file = paste0(recovery_dir, mutations_in_elements_filename))
+			save(mutations_in_elements, file = mutations_in_elements_filename)
 		}
 	}
 	rm(mutations_in_elements_filename)
 
-	mutations_in_windows = NULL
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, mutations_in_windows_filename))) {
-		load(paste0(recovery_dir, mutations_in_windows_filename))
-		cat("Recovered prepared mutations\n")
-	} else {
+	if (class(in_windows_load_result) == try_error) {
 		mutations_in_windows = merge_elements_snvs(window_coords, muts)
 		if (!is.na(recovery_dir)) {
-			save(mutations_in_windows, file = paste0(recovery_dir, mutations_in_windows_filename))
+			save(mutations_in_windows, file = mutations_in_windows_filename)
 		}
 		cat("Successfully prepared mutations\n")
+	} else {
+		cat("Recovered prepared mutations\n")
 	}
-	rm(mutations_in_windows_filename, muts)
+	rm(mutations_in_windows_filename, muts, in_windows_load_result)
 
 	not_done = NULL
-	not_done_filename = "/ADWGS_TODO_recovery_file.rsav"
-	if (!is.na(recovery_dir) & file.exists(paste0(recovery_dir, not_done_filename))) {
-		load(paste0(recovery_dir, not_done_filename))
-	} else {
+	not_done_filename = paste0(recovery_dir, "/ADWGS_TODO_recovery_file.rsav")
+	load_result = suppressWarnings(try(load(not_done_filename), silent = TRUE))
+	if (class(load_result) == try_error) {
 		not_done = get_todo_for_elements(element_coords, mutations_in_elements)
 		if (!is.na(recovery_dir)) {
-			save(not_done, file = paste0(recovery_dir, not_done_filename))
+			save(not_done, file = not_done_filename)
 		}
 	}
 
@@ -747,19 +743,20 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 		results_filenames = list.files(recovery_dir, pattern = "ADWGS_result[0123456789]+_recovery_file.rsav")
 		if (length(results_filenames) > 0) results_filenames = paste0("/", results_filenames)
 		recovered_results = do.call(rbind, lapply(results_filenames, function(filename) {
-				load(paste0(recovery_dir, filename))
+				load_result = suppressWarnings(try(load(paste0(recovery_dir, filename)), silent = TRUE))
+				if (class(load_result) == try_error) return(NULL)
 				if (ncol(result) != 13) return(NULL)
 				result
 			}))
 		recovered_result_numbers = recovered_results$result_number
-		if (length(recovered_result_numbers) > 0) cat("Tests recovered: ", length(recovered_result_numbers), "\n")
 	}
 
-	cat("Tests to do: ", length(not_done) - length(recovered_result_numbers), "\n")
+	cat("Tests to do: ", length(not_done), "\n")
+	if (length(recovered_result_numbers) > 0) cat("Tests recovered: ", length(recovered_result_numbers), "\n")
 
 	mutated_results = do.call(rbind, parallel::mclapply(1:length(not_done), function(i) {
-		if (i %in% recovered_result_numbers) return(NULL)
 		if (i %% 100 == 0) cat(i, "\n")
+		if (i %in% recovered_result_numbers) return(NULL)
 		element_id = not_done[i]
 		result = regress_test(element_id, mutations_in_sites, mutations_in_elements,
 			mutations_in_windows, site_3n, element_3n, window_3n)
