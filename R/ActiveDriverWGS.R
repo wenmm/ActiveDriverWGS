@@ -2,7 +2,6 @@
 
 #### Regression Test
 
-# hyp = h0; dfr = dfr_w_site; select_positions = dfr_w_site$is_element==1
 get_obs_exp = function(hyp, select_positions, dfr) {
 	obs_mut = sum(dfr[select_positions, "muts"])
 	predict_mut = stats::predict(hyp, type="response")[select_positions]
@@ -12,7 +11,6 @@ get_obs_exp = function(hyp, select_positions, dfr) {
 	list(obs_mut, exp_mut, obs_enriched)
 }
 
-# this_3n = single_site_3n; this_muts = single_site_muts; this_tag = "element"
 get_dfr_by_3n = function(this_3n, this_muts, this_tag, cols_3n) {
 
 	# first make sure that only valid trinucleotides are included (exclude those with N)	
@@ -22,7 +20,6 @@ get_dfr_by_3n = function(this_3n, this_muts, this_tag, cols_3n) {
 	# subtract mutated trinucleotides from all trinucleotides
 	# we subtract positions in trinucleotide context that have been mutated at least once
 	# as opposed to all counts of trinucleotides where recurrent mutations would be counted several times
-	# wrong - 	mutated_3n = table(toupper(this_muts$mut_tag))
 	mutated_3n = table(unique(this_muts[,c("mut_pos1", "mut_tag")])[,"mut_tag"])
 	this_3n[names(mutated_3n)] = this_3n[names(mutated_3n)] - mutated_3n
 	# some indel situations may hit a small site (one trinucleotide) but overlap it
@@ -30,7 +27,6 @@ get_dfr_by_3n = function(this_3n, this_muts, this_tag, cols_3n) {
 	this_3n[this_3n<0] = 0
 	
 	# first get mutated positions by recurrence
-	# this bugfix is serious - elements/sites with just one type of trinucs were ignored
 	mut_count_by_3n = table(this_muts$mut_pos1, this_muts$mut_tag)
 	trinucs_used = colnames(mut_count_by_3n)
 	mut_count_by_3n = lapply(colnames(mut_count_by_3n), function(x) mut_count_by_3n[,x])
@@ -184,8 +180,6 @@ regress_test = function(id, mutations_in_sites, mutations_in_elements, mutations
 			pp_site = 1 - pp_site
 		}
 		
-		
-#		}
 		rm(h2)
 	}
 	
