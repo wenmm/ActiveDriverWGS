@@ -216,6 +216,8 @@ split_coord_fragments_in_BED = function(i, coords) {
 prepare_element_coords_from_BED = function(fname) {
 	input = utils::read.delim(fname, stringsAsFactors=F, header=F)
 	colnames(input) = paste0("V", 1:ncol(input))
+	if (length(unique(input$V4)) != nrow(input)) cat("Warning: There are repeated IDs in the elements input.\n")
+
 	input$V1 = gsub("chr", "", input$V1, ignore.case = TRUE)
 	input$V1 = paste0("chr", input$V1)
 	coords = do.call(rbind, lapply(1:nrow(input), split_coord_fragments_in_BED, input))
@@ -771,10 +773,13 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 
 	mutated_results = as.matrix(mutated_results)
 	unmutated_results =  get_unmutated_elements(element_coords, mutations_in_elements)
-	rm(element_coords, mutations_in_elements)
+	rm(mutations_in_elements)
 
 	all_results = rbind(mutated_results, unmutated_results)
 	rm(mutated_results, unmutated_results)
+	if (nrow(all_results) != length(unique(element_coords$id))) stop("Error: Something unexpected happened. Please try again.\n")
+
+	rm(element_coords)
 
 	all_results = fix_all_results(all_results)
 	all_results = get_signf_results(all_results)
