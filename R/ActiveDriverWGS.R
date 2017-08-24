@@ -742,7 +742,7 @@ find_drivers = function(prepared_elements, mutations_file, filter_hyper_MB = 30,
 				load_result = suppressWarnings(try(load(paste0(recovery_dir, filename)), silent = TRUE))
 				if (class(load_result) == try_error) return(NULL)
 				if (ncol(result) != 13) return(NULL)
-				result
+				result = result
 			}))
 		recovered_result_numbers = recovered_results$result_number
 	}
