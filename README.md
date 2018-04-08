@@ -1,6 +1,6 @@
 # ActiveDriverWGS
 
-ActiveDriverWGS is a driver discovery tool for analysis of whole genome sequencing data. It analyzes the mutational burden of SNVs and short INDELs in functionally defined region of interest and retrieves regions which are significantly mutated compared to user-defined background window. 
+ActiveDriverWGS is a driver discovery tool for analysis of whole genome sequencing data. It analyzes the mutational burden of SNVs and short INDELs in functionally defined regions of interest and retrieves regions which are significantly mutated compared to user-defined background window. 
 
 For more information, please refer to the ActiveDriverWGS publication. https://www.biorxiv.org/content/early/2017/12/19/236802
 
@@ -44,13 +44,18 @@ chr1 331068 331078 M0082_1.02:TFAP2A;TFAP2B;TFAP2C;TFAP2D;TFAP2E
 ### Sample Code
 ```
 # prepare_elements
-prepare_elements_cds_tf <- prepare_elements("regions.bed", 
+prepare_elements_regions_tf <- prepare_elements("regions.bed", 
                                             "tf_bindingsites.bed", 
                                             window_size = 50000)
 
 # find_drivers
-results_exonic_cds_tf <- find_drivers(prepare_elements_cds_tf, "all_mutations_WGS.txt")
+results <- find_drivers(prepare_elements_regions_tf, 
+                        "all_mutations_WGS.txt")
 
 # write results to a table
-write.table(results_exonic_cds_tf, “results_all_mutations_cds_tf.txt", sep = "\t", row.names = FALSE, col.names = TRUE)
+write.table(results_, 
+            “results.txt", 
+            sep = "\t", 
+            row.names = FALSE, 
+            col.names = TRUE)
 ```
