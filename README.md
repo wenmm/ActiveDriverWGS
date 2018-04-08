@@ -45,8 +45,8 @@ chr1 331068 331078 M0082_1.02:TFAP2A;TFAP2B;TFAP2C;TFAP2D;TFAP2E
 ```
 # prepare_elements
 prepare_elements_regions_tf <- prepare_elements("regions.bed", 
-                                            "tf_bindingsites.bed", 
-                                            window_size = 50000)
+                                                "tf_bindingsites.bed", 
+                                                 window_size = 50000)
 
 # find_drivers
 results <- find_drivers(prepare_elements_regions_tf, 
