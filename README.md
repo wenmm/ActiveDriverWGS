@@ -19,7 +19,7 @@ chr1 4551961 4551961 T A Patient_1
 ```
 
 #### 2. Regions of Interest (regions.bed)
-Regions of interest as defined by user can be coding or noncoding in a BED12 format
+Regions of interest can be coding or noncoding should be in a BED12 format
 
 ```
 chr1 69090 70008 gc19_pc.cds::gencode::OR4F5::ENSG00000186092.4 0 + 69090 70008 0 1 918, 0,
@@ -31,7 +31,7 @@ chr1 738531 739137 gc19_pc.cds::gencode::AL669831.1::ENSG00000269831.1 0 - 73853
 ```
 
 #### 3. Sites of Interest (tf_bindingsites.bed)
-Sites of interest (e.g. Transcription factor binding sites) which may be active sites in regions of interest in a BED4 format
+Sites of interest (e.g. Transcription factor binding sites) which may be active sites in regions of interest should be in a BED4 format
 
 ```
 chr1 24810 24820 M0082_1.02:TFAP2A;TFAP2B;TFAP2C;TFAP2D;TFAP2E
