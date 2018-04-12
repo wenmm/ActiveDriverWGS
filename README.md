@@ -8,7 +8,7 @@ For more information, please refer to the ActiveDriverWGS publication. https://w
 ActiveDriverWGS requires three input files:
 
 #### 1. Mutations (all_mutations_WGS.txt)
-5 Column Tab Separated File (Chromosome, Start, End, Reference, Alternate, Patient ID)
+6 Column Tab Separated File (Chromosome, Start, End, Reference, Alternate, Patient ID)
 
 ```
 chr1 1485768 1485768 G A Patient_1
