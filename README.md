@@ -5,6 +5,7 @@ ActiveDriverWGS is a driver discovery tool for analysis of whole genome sequenci
 For more information, please refer to the ActiveDriverWGS publication. https://www.biorxiv.org/content/early/2017/12/19/236802
 
 ### Data Input
+##### NOTE: Currently ActiveDriverWGS only works on regions/mutations from GRCh37. Stay tuned for an update.
 ActiveDriverWGS requires three input files:
 
 #### 1. Mutations (all_mutations_WGS.txt)
