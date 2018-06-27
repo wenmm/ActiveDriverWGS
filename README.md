@@ -54,7 +54,7 @@ results <- find_drivers(prepare_elements_regions_tf,
                         "all_mutations_WGS.txt")
 
 # write results to a table
-write.table(results_, 
+write.table(results, 
             “results.txt", 
             sep = "\t", 
             row.names = FALSE, 
