@@ -226,3 +226,25 @@ write.table(results,
             row.names = FALSE, 
             col.names = TRUE)
 ```
+### Results
+Results are presented in a dataframe with the following columns:
+id (region identifier)
+pp_site (p value for enrichment of mutations in sites)
+pp_element (p value for enrichment of mutations in region)
+element_muts_obs (number of patients with mutations in region)
+element_muts_exp (number of patients expected with mutations in region)
+element_enriched (TRUE or FALSE for enrichment of mutations)
+site_muts_obs (number of patients with mutations in sites)
+site_muts_exp (number of patients expected with mutations in sites)
+site_enriched (TRUE or FALSE for enrichment of mutations)
+selected_sites
+h0_df (degrees of freedom for h0)
+h1_df (degrees of freedom for h1)
+fdr_element (False Discovery Rate for element mutations)
+fdr_site (False Discovery Rate for site mutations)
+has_site_mutations (V for site mutations)
+
+```
+id	pp_site	pp_element	element_muts_obs	element_muts_exp	element_enriched	site_muts_obs	site_muts_exp	site_enriched	selected_sites	h0_df	h1_df	fdr_element	fdr_site	has_site_mutations
+gc19_pc.cds::gencode::TP53::ENSG00000141510.11	0.005491663	1.279218e-214	134	2.271478	TRUE	7	2.060235	TRUE	8:1	NA	1	1.279218e-214	0.005491663	V
+```
